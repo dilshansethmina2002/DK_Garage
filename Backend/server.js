@@ -13,7 +13,7 @@ app.use(express.json());
 
 app.use('/api/jobs', jobRoutes);
 
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB Connected successfully'))
   .catch(err => console.error('MongoDB connection error:', err));
 
