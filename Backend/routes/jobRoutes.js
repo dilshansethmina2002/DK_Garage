@@ -2,12 +2,13 @@ import express from 'express';
 import JobCard from '../models/JobCard.js';
 import Customer from '../models/Customer.js';
 import Vehicle from '../models/Vehicle.js';
+import { verifyToken, authorizeRoles } from '../middleware/authMiddleware.js';
 
-const router = express.Router();
+const jobRouter = express.Router();
 
 // GET /api/jobs/active
 // Fetches all jobs that are NOT completed
-router.get('/active', async (req, res) => {
+jobRouter.get('/active', verifyToken, async (req, res) => {
   try {
     const activeJobs = await JobCard.find({ status: { $ne: 'Completed' } })
       .populate('customer', 'name phone')
@@ -31,7 +32,8 @@ router.get('/active', async (req, res) => {
 
 // POST /api/jobs
 // Creates a new Customer, Vehicle, and Job Card all at once
-router.post('/', async (req, res) => {
+// PROTECTED: Only Admins and Service Advisors can create jobs
+jobRouter.post('/', verifyToken, authorizeRoles('Admin', 'ServiceAdvisor'), async (req, res) => {
   try {
     const { customerName, customerPhone, make, model, licensePlate, mechanic } = req.body;
 
@@ -72,4 +74,51 @@ router.post('/', async (req, res) => {
   }
 });
 
-export default router;
+// PUT /api/jobs/:jobId/status
+// Updates the status of a specific job card
+jobRouter.put('/:jobId/log', verifyToken, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { notes, laborHours } = req.body;
+
+    const updatedJob = await JobCard.findOneAndUpdate(
+      { jobId: jobId },
+      { 
+        notes: notes, 
+        // Ensure laborHours is saved as a number, defaulting to 0 if left blank
+        laborHours: Number(laborHours) || 0 
+      },
+      { new: true } 
+    );
+
+    if (!updatedJob) {
+      return res.status(404).json({ message: 'Job Card not found' });
+    }
+
+    res.status(200).json({ message: 'Repair log updated successfully', job: updatedJob });
+  } catch (error) {
+    console.error("Error updating repair log:", error);
+    res.status(500).json({ message: 'Failed to update repair log' });
+  }
+});
+
+// GET /api/jobs/:jobId
+// Fetches detailed information for a single job card
+jobRouter.get('/:jobId', verifyToken, async (req, res) => {
+  try {
+    const job = await JobCard.findOne({ jobId: req.params.jobId })
+      .populate('customer')
+      .populate('vehicle');
+      
+    if (!job) {
+      return res.status(404).json({ message: 'Job Card not found' });
+    }
+    
+    res.status(200).json(job);
+  } catch (error) {
+    console.error("Error fetching single job:", error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+export default jobRouter;
