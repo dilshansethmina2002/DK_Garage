@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-// Add Package, Users, FileText, and Settings to your existing imports
 import {
-  Car, Wrench, CircleDollarSign, Plus, Activity, AlertCircle, LogOut, User,
-  Package, Users, FileText, Settings
+  Car, Wrench, CircleDollarSign, Plus, Activity, AlertCircle,
+  Package, Users, ClipboardList, X, ChevronRight, Clock, ArrowUpRight,
+  UserCheck, Check, ChevronDown, Search
 } from 'lucide-react';
 
 const weeklyRevenue = [
@@ -27,222 +27,393 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Registered mechanics from DB
+  const [registeredMechanics, setRegisteredMechanics] = useState([]);
+  const [selectedMechanics, setSelectedMechanics] = useState([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mechSearch, setMechSearch] = useState('');
+  const dropdownRef = useRef(null);
+
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    customerName: '', customerPhone: '', make: '', model: '', licensePlate: '', mechanic: ''
+    customerName: '', customerPhone: '', make: '', model: '', licensePlate: ''
   });
 
-  // 1. Check Authentication on Load
+  const getAuthConfig = () => {
+    const token = localStorage.getItem('token');
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    };
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
 
     if (!token || !userStr) {
-      navigate('/login'); // Kick them out if not logged in
+      navigate('/login');
       return;
     }
 
-    setCurrentUser(JSON.parse(userStr));
+    try {
+      setCurrentUser(JSON.parse(userStr));
+    } catch {
+      navigate('/login');
+      return;
+    }
+
     fetchJobs();
+    fetchRegisteredMechanics();
   }, [navigate]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/jobs/active');
+      const response = await axios.get('http://localhost:5000/api/jobs/active', getAuthConfig());
       setActiveJobs(response.data);
     } catch (err) {
       if (err.response?.status === 401) {
-        handleLogout(); // Token expired
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
       } else {
-        setError("Failed to load active jobs.");
+        setError("Failed to load active repairs from server.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+  const fetchRegisteredMechanics = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/users/mechanics', getAuthConfig());
+      setRegisteredMechanics(res.data);
+    } catch (err) {
+      console.warn("Could not load mechanics list:", err);
+    }
   };
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const toggleMechanicSelection = (mechanicName) => {
+    if (selectedMechanics.includes(mechanicName)) {
+      setSelectedMechanics(selectedMechanics.filter(m => m !== mechanicName));
+    } else {
+      setSelectedMechanics([...selectedMechanics, mechanicName]);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (selectedMechanics.length === 0) {
+      alert("Please select at least one registered mechanic.");
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      mechanics: selectedMechanics,
+      mechanic: selectedMechanics.join(', ')
+    };
+
     try {
-      await axios.post('http://localhost:5000/api/jobs', formData);
+      await axios.post('http://localhost:5000/api/jobs', payload, getAuthConfig());
       setIsModalOpen(false);
-      setFormData({ customerName: '', customerPhone: '', make: '', model: '', licensePlate: '', mechanic: '' });
+      setFormData({ customerName: '', customerPhone: '', make: '', model: '', licensePlate: '' });
+      setSelectedMechanics([]);
+      setMechSearch('');
       fetchJobs();
     } catch (err) {
-      alert("Failed to create job card. Make sure you have Admin permissions.");
+      alert(err.response?.data?.message || "Failed to create job card.");
     }
   };
 
   const handleStatusChange = async (jobId, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/jobs/${jobId}/status`, { status: newStatus });
-      fetchJobs();
-    } catch (err) {
+      await axios.put(`http://localhost:5000/api/jobs/${jobId}/status`, { status: newStatus }, getAuthConfig());
+      setActiveJobs(activeJobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j));
+    } catch {
       alert("Failed to update status.");
     }
   };
 
-  if (!currentUser) return null; // Prevent flash of dashboard before redirect
+  const renderMechanicsBadges = (job) => {
+    const list = Array.isArray(job.mechanics) && job.mechanics.length > 0
+      ? job.mechanics
+      : job.mechanic ? String(job.mechanic).split(',').map(s => s.trim()).filter(Boolean)
+        : [];
+
+    if (list.length === 0) {
+      return <span className="text-gray-400 italic text-xs">Unassigned</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-1">
+        {list.map((mech, idx) => (
+          <span
+            key={idx}
+            className="inline-flex items-center gap-1 bg-gray-100 border border-gray-300 text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-md"
+          >
+            <Wrench className="w-2.5 h-2.5 text-gray-500" />
+            {mech}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const filteredRegisteredMechanics = registeredMechanics.filter(m =>
+    (m.name || '').toLowerCase().includes(mechSearch.toLowerCase()) ||
+    (m.username || '').toLowerCase().includes(mechSearch.toLowerCase())
+  );
+
+  if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-8 font-sans text-slate-900">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans text-gray-900">
 
-      {/* Top Navigation / Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      {/* Top Header Card */}
+      <div className="bg-white rounded-2xl border-2 border-gray-300 p-5 sm:p-6 mb-6 sm:mb-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 mt-1 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-500" />
-            System operational | Welcome, {currentUser.username}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-300 mb-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            System Live
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-950">
+            DK Automobile Dashboard[cite: 1]
+          </h1>
+          <p className="text-gray-600 text-xs sm:text-sm mt-1">
+            Logged in as <strong className="text-gray-950 font-bold">{currentUser.username}</strong>
+            <span className="text-gray-400 mx-2">•</span>
+            <span className="text-gray-700 uppercase font-extrabold text-xs tracking-wider">{currentUser.role || 'Staff'}</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" /> New Job Card
+        <button
+          onClick={() => {
+            setFormData({ customerName: '', customerPhone: '', make: '', model: '', licensePlate: '' });
+            setSelectedMechanics([]);
+            setMechSearch('');
+            setIsModalOpen(true);
+            fetchRegisteredMechanics();
+          }}
+          className="w-full sm:w-auto bg-[#BC0202] hover:bg-[#830000] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-[#830000]"
+        >
+          <Plus className="w-5 h-5 stroke-[2.5]" />
+          New Job Card
+        </button>
+      </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border-2 border-red-300 text-red-900 p-4 rounded-xl mb-6 flex items-center justify-between text-sm shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+            <span className="font-semibold">{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="text-xs text-red-800 underline font-extrabold cursor-pointer">
+            Dismiss
           </button>
+        </div>
+      )}
 
-          <button
-            onClick={handleLogout}
-            className="bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 px-4 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2"
+      {/* Metric Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-md p-6 flex flex-col justify-between relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-900" />
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500">Vehicles in Workshop</span>
+              <h3 className="text-4xl font-black text-slate-950 mt-2">{activeJobs.length}</h3>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 flex items-center justify-center shadow-inner">
+              <Car className="w-6 h-6 stroke-[2.2]" />
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 font-semibold">
+            <span>Current Floor Occupancy</span>
+            <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold">Active</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border-2 border-amber-300 shadow-md p-6 flex flex-col justify-between relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-amber-500" />
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-amber-700">Pending Inspections</span>
+              <h3 className="text-4xl font-black text-amber-950 mt-2">
+                {activeJobs.filter(job => job.status === 'Pending Inspection').length}
+              </h3>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-300 text-amber-700 flex items-center justify-center shadow-inner">
+              <Clock className="w-6 h-6 stroke-[2.2]" />
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-amber-100 flex items-center justify-between text-xs text-amber-800 font-semibold">
+            <span>Requires Diagnostics</span>
+            <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">Priority</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-md p-6 flex flex-col justify-between relative overflow-hidden sm:col-span-2 lg:col-span-1">
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600" />
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-700">Estimated Target</span>
+              <h3 className="text-3xl sm:text-4xl font-black text-emerald-950 mt-2">LKR 45,000</h3>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 flex items-center justify-center shadow-inner">
+              <CircleDollarSign className="w-6 h-6 stroke-[2.2]" />
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-emerald-100 flex items-center justify-between text-xs text-emerald-800 font-semibold">
+            <span>Daily Projection</span>
+            <span className="bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded font-bold">Revenue</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Operations Quick Menu */}
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-xs font-black text-gray-600 uppercase tracking-wider mb-3 px-1">
+          Operations & Modules
+        </h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link
+            to="/job-cards/workspace"
+            className="p-5 rounded-2xl bg-white border-2 border-gray-300 shadow-sm hover:border-gray-900 hover:shadow-md transition-all flex flex-col justify-between group"
           >
-            <LogOut className="w-4 h-4" /> Sign Out
-          </button>
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-300 group-hover:bg-gray-900 group-hover:text-white transition-colors">
+                <ClipboardList className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-950 transition-colors" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base text-gray-950">Job Workspace</h3>
+              <p className="text-gray-600 text-xs hidden sm:block mt-1">Open repairs editor</p>
+            </div>
+          </Link>
+
+          <Link
+            to="/vehicles"
+            className="p-5 rounded-2xl bg-white border-2 border-gray-300 shadow-sm hover:border-gray-900 hover:shadow-md transition-all flex flex-col justify-between group"
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-300 group-hover:bg-gray-900 group-hover:text-white transition-colors">
+                <Car className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-950 transition-colors" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base text-gray-950">Vehicles</h3>
+              <p className="text-gray-600 text-xs hidden sm:block mt-1">Database & history</p>
+            </div>
+          </Link>
+
+          <Link
+            to="/inventory"
+            className="p-5 rounded-2xl bg-white border-2 border-gray-300 shadow-sm hover:border-gray-900 hover:shadow-md transition-all flex flex-col justify-between group"
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-300 group-hover:bg-gray-900 group-hover:text-white transition-colors">
+                <Package className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-950 transition-colors" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base text-gray-950">Spare Parts</h3>
+              <p className="text-gray-600 text-xs hidden sm:block mt-1">Stock balance</p>
+            </div>
+          </Link>
+
+          <Link
+            to="/customers"
+            className="p-5 rounded-2xl bg-white border-2 border-gray-300 shadow-sm hover:border-gray-900 hover:shadow-md transition-all flex flex-col justify-between group"
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-300 group-hover:bg-gray-900 group-hover:text-white transition-colors">
+                <Users className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-950 transition-colors" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base text-gray-950">Customers</h3>
+              <p className="text-gray-600 text-xs hidden sm:block mt-1">Contacts list</p>
+            </div>
+          </Link>
         </div>
       </div>
 
-      {/* Modern Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all">
-          <div>
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Vehicles in Shop</p>
-            <h3 className="text-3xl font-bold text-slate-800">{activeJobs.length}</h3>
-          </div>
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Car className="w-6 h-6" />
-          </div>
-        </div>
+      {/* Grid: Active Repairs & Revenue Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all">
-          <div>
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Pending Inspections</p>
-            <h3 className="text-3xl font-bold text-slate-800">
-              {activeJobs.filter(job => job.status === 'Pending Inspection').length}
-            </h3>
-          </div>
-          <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all">
-          <div>
-            <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Est. Daily Revenue</p>
-            <h3 className="text-3xl font-bold text-slate-800">LKR 45,000</h3>
-          </div>
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-            <CircleDollarSign className="w-6 h-6" />
-          </div>
-        </div>
-      </div>
-
-      {/* --- QUICK NAVIGATION GRID --- */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold text-slate-800 mb-4 px-1">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-          <Link to="/inventory" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-3 group hover:shadow-md hover:border-indigo-200 hover:-translate-y-1 transition-all">
-            <div className="w-12 h-12 bg-slate-50 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 rounded-xl flex items-center justify-center transition-colors">
-              <Package className="w-6 h-6" />
+        {/* Left Column: Active Repairs */}
+        <div className="lg:col-span-7 xl:col-span-8 bg-white rounded-2xl border-2 border-gray-300 overflow-hidden flex flex-col shadow-sm">
+          <div className="p-4 sm:p-5 border-b-2 border-gray-200 bg-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-gray-800" />
+              <h2 className="font-black text-sm sm:text-base text-gray-950 uppercase tracking-wide">
+                Active Repairs on Floor
+              </h2>
             </div>
-            <span className="font-semibold text-slate-700 group-hover:text-indigo-700 transition-colors">Parts Inventory</span>
-          </Link>
-
-          <Link to="/invoices" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-3 group hover:shadow-md hover:border-emerald-200 hover:-translate-y-1 transition-all">
-            <div className="w-12 h-12 bg-slate-50 text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 rounded-xl flex items-center justify-center transition-colors">
-              <FileText className="w-6 h-6" />
-            </div>
-            <span className="font-semibold text-slate-700 group-hover:text-emerald-700 transition-colors">Invoices</span>
-          </Link>
-
-          <Link to="/customers" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-3 group hover:shadow-md hover:border-blue-200 hover:-translate-y-1 transition-all">
-            <div className="w-12 h-12 bg-slate-50 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 rounded-xl flex items-center justify-center transition-colors">
-              <Users className="w-6 h-6" />
-            </div>
-            <span className="font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">Customers</span>
-          </Link>
-
-          <Link to="/settings" className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-3 group hover:shadow-md hover:border-slate-300 hover:-translate-y-1 transition-all">
-            <div className="w-12 h-12 bg-slate-50 text-slate-500 group-hover:bg-slate-100 group-hover:text-slate-800 rounded-xl flex items-center justify-center transition-colors">
-              <Settings className="w-6 h-6" />
-            </div>
-            <span className="font-semibold text-slate-700 group-hover:text-slate-900 transition-colors">Settings</span>
-          </Link>
-
-        </div>
-      </div>
-      {/* ----------------------------- */}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-        {/* Left Column: Active Jobs Table */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
-          <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-sm">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-indigo-500" /> Active Repairs
-            </h2>
+            <Link
+              to="/job-cards"
+              className="text-xs font-black text-slate-800 hover:text-black transition-colors flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-gray-300 shadow-xs"
+            >
+              View All[cite: 1] <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
-          <div className="overflow-x-auto flex-1">
-            <table className="w-full text-left border-collapse">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-100">
-                  <th className="px-6 py-4 font-semibold">Job Details</th>
-                  <th className="px-6 py-4 font-semibold">Customer</th>
-                  <th className="px-6 py-4 font-semibold">Status</th>
+                <tr className="border-b-2 border-gray-200 bg-gray-100/75 text-gray-700 text-xs uppercase font-black tracking-wider">
+                  <th className="py-3.5 px-5">Job Details</th>
+                  <th className="py-3.5 px-5">Customer & Assigned Mechanics</th>
+                  <th className="py-3.5 px-5 text-right">Status Action</th>
                 </tr>
               </thead>
-              <tbody className="text-sm divide-y divide-slate-50">
+              <tbody className="divide-y divide-gray-200">
                 {activeJobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <Link to={`/job/${job.id}`} className="font-bold text-indigo-600 hover:text-indigo-800 group-hover:underline">
-                          {job.id}
-                        </Link>
-                        <span className="text-slate-500 mt-0.5">{job.vehicle}</span>
-                      </div>
+                  <tr key={job.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-5">
+                      <Link
+                        to={`/job-cards/workspace/${job.id}`}
+                        className="font-black text-slate-900 hover:text-[#BC0202] text-sm hover:underline block"
+                      >
+                        {job.id}
+                      </Link>
+                      <span className="text-gray-700 text-xs font-bold mt-0.5 block">
+                        {job.vehicle}
+                      </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-slate-800">{job.customer}</span>
-                        <span className="text-slate-400 text-xs mt-0.5">Assigned to: {job.mechanic}</span>
-                      </div>
+                    <td className="py-4 px-5">
+                      <p className="text-gray-950 font-extrabold">{job.customer}</p>
+                      {renderMechanicsBadges(job)}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="py-4 px-5 text-right">
                       <select
                         value={job.status}
                         onChange={(e) => handleStatusChange(job.id, e.target.value)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold border-0 cursor-pointer outline-none transition-all appearance-none text-center
-                          ${job.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                            job.status === 'Awaiting Parts' ? 'bg-amber-100 text-amber-700' :
-                              job.status === 'Ready for Pickup' ? 'bg-emerald-100 text-emerald-700' :
-                                'bg-slate-100 text-slate-700'}`}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-800 outline-none cursor-pointer focus:border-slate-800"
                       >
                         <option value="Pending Inspection">Pending Inspection</option>
                         <option value="In Progress">In Progress</option>
@@ -256,75 +427,306 @@ const Dashboard = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card List View */}
+          <div className="md:hidden divide-y divide-gray-200">
+            {activeJobs.map((job) => (
+              <div key={job.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <Link
+                      to={`/job-cards/workspace/${job.id}`}
+                      className="font-black text-slate-900 text-sm hover:underline"
+                    >
+                      {job.id}
+                    </Link>
+                    <p className="text-gray-950 font-bold text-sm">{job.vehicle}</p>
+                  </div>
+                </div>
+
+                <div className="text-xs text-gray-600">
+                  Customer: <strong className="text-gray-900">{job.customer}</strong>
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">Mechanics Assigned:</span>
+                  {renderMechanicsBadges(job)}
+                </div>
+
+                <div className="pt-1">
+                  <select
+                    value={job.status}
+                    onChange={(e) => handleStatusChange(job.id, e.target.value)}
+                    className="w-full text-xs font-bold p-2.5 rounded-xl border-2 border-gray-300 bg-white text-gray-800 outline-none"
+                  >
+                    <option value="Pending Inspection">Pending Inspection</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Awaiting Parts">Awaiting Parts</option>
+                    <option value="Ready for Pickup">Ready for Pickup</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {activeJobs.length === 0 && !loading && (
+            <div className="py-12 text-center text-gray-500 text-sm font-semibold">
+              No active repair cards currently registered.
+            </div>
+          )}
         </div>
 
-        {/* Right Column: Analytics Chart */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-          <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <CircleDollarSign className="w-5 h-5 text-emerald-500" /> Revenue This Week
-          </h2>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyRevenue} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                <Bar dataKey="revenue" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Right Column: Weekly Revenue Chart */}
+        <div className="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl border-2 border-gray-300 p-5 sm:p-6 flex flex-col justify-between shadow-sm">
+          <div>
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+              <h2 className="font-black text-sm text-gray-950 uppercase tracking-wide flex items-center gap-2">
+                <CircleDollarSign className="w-4 h-4 text-emerald-700" />
+                Revenue Analytics
+              </h2>
+              <span className="text-xs font-black text-gray-800 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-300">
+                LKR
+              </span>
+            </div>
+
+            <div className="h-60 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklyRevenue} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={false}
+                    tick={{ fill: '#374151', fontSize: 11, fontWeight: 700 }}
+                    dy={6}
+                  />
+                  <YAxis
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={false}
+                    tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 600 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: '#f3f4f6' }}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: '2px solid #d1d5db',
+                      backgroundColor: '#ffffff',
+                      color: '#0f172a',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }}
+                  />
+                  <Bar dataKey="revenue" fill="#0f172a" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t-2 border-gray-200 mt-4 flex items-center justify-between text-xs text-gray-600 font-semibold">
+            <span>Peak: <strong className="text-gray-900">Saturday</strong></span>
+            <span className="font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+              LKR 85,000
+            </span>
           </div>
         </div>
 
       </div>
 
-      {/* Modal Overlay */}
+      {/* Creation Modal with Registered Mechanics Multi-Select Dropdown */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
-            <h2 className="text-xl font-bold mb-6 text-slate-800">Create New Job Card</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl border-2 border-gray-400 p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+
+            <div className="flex items-center justify-between pb-3 border-b-2 border-gray-200 mb-4">
+              <h2 className="text-lg font-black text-gray-950">Create Job Card</h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-gray-500 hover:text-gray-950 rounded-lg hover:bg-gray-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm">
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  name="customerName"
+                  required
+                  placeholder="e.g. Ruwan Silva"
+                  value={formData.customerName}
+                  onChange={handleInputChange}
+                  className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">
+                  Phone Number *
+                </label>
+                <input
+                  type="text"
+                  name="customerPhone"
+                  required
+                  placeholder="0771234567"
+                  value={formData.customerPhone}
+                  onChange={handleInputChange}
+                  className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Customer Name</label>
-                  <input type="text" name="customerName" required value={formData.customerName} onChange={handleInputChange} className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <label className="block font-bold text-gray-700 mb-1">
+                    Make *
+                  </label>
+                  <input
+                    type="text"
+                    name="make"
+                    required
+                    placeholder="Toyota"
+                    value={formData.make}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Customer Phone</label>
-                  <input type="text" name="customerPhone" required value={formData.customerPhone} onChange={handleInputChange} className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle Make</label>
-                    <input type="text" name="make" placeholder="e.g. Toyota" required value={formData.make} onChange={handleInputChange} className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Vehicle Model</label>
-                    <input type="text" name="model" placeholder="e.g. Corolla" required value={formData.model} onChange={handleInputChange} className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">License Plate</label>
-                  <input type="text" name="licensePlate" required value={formData.licensePlate} onChange={handleInputChange} className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Assigned Mechanic</label>
-                  <input type="text" name="mechanic" required value={formData.mechanic} onChange={handleInputChange} className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <label className="block font-bold text-gray-700 mb-1">
+                    Model *
+                  </label>
+                  <input
+                    type="text"
+                    name="model"
+                    required
+                    placeholder="Yaris"
+                    value={formData.model}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
+                  />
                 </div>
               </div>
 
-              <div className="mt-8 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-colors">
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">
+                  License Plate *
+                </label>
+                <input
+                  type="text"
+                  name="licensePlate"
+                  required
+                  placeholder="WP KV-2008"
+                  value={formData.licensePlate}
+                  onChange={handleInputChange}
+                  className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 uppercase font-black outline-none focus:border-slate-800"
+                />
+              </div>
+
+              {/* USER-FRIENDLY REGISTERED MECHANICS DROPDOWN & TAG PICKER */}
+              <div className="relative" ref={dropdownRef}>
+                <label className="block font-bold text-gray-700 mb-1">
+                  Assign Registered Mechanics *
+                </label>
+
+                {/* Selected Mechanics Badges Area */}
+                <div
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="w-full min-h-[46px] p-2 bg-white border-2 border-gray-300 rounded-xl flex items-center justify-between gap-2 cursor-pointer hover:border-slate-800 transition-colors"
+                >
+                  <div className="flex flex-wrap gap-1.5 flex-1">
+                    {selectedMechanics.map((name) => (
+                      <span
+                        key={name}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleMechanicSelection(name);
+                        }}
+                        className="inline-flex items-center gap-1.5 bg-slate-900 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-xs group"
+                      >
+                        <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                        {name}
+                        <X className="w-3.5 h-3.5 text-gray-400 group-hover:text-red-400" />
+                      </span>
+                    ))}
+                    {selectedMechanics.length === 0 && (
+                      <span className="text-gray-400 text-xs py-1 px-1">
+                        Select registered mechanic(s)...
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                </div>
+
+                {/* Searchable Dropdown Popup */}
+                {dropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border-2 border-gray-300 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <div className="p-2 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
+                      <Search className="w-3.5 h-3.5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search registered staff..."
+                        value={mechSearch}
+                        onChange={(e) => setMechSearch(e.target.value)}
+                        className="w-full bg-transparent text-xs outline-none text-gray-800 font-medium"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto divide-y divide-gray-100">
+                      {filteredRegisteredMechanics.map((m) => {
+                        const isSelected = selectedMechanics.includes(m.name);
+                        return (
+                          <div
+                            key={m._id}
+                            onClick={() => toggleMechanicSelection(m.name)}
+                            className={`p-2.5 flex items-center justify-between text-xs font-bold cursor-pointer transition-colors ${isSelected
+                                ? 'bg-slate-100 text-slate-900'
+                                : 'hover:bg-gray-50 text-gray-700'
+                              }`}
+                          >
+                            <div>
+                              <p className="font-extrabold">{m.name}</p>
+                              <p className="text-[11px] font-normal text-gray-500">@{m.username}</p>
+                            </div>
+                            {isSelected && <Check className="w-4 h-4 text-[#BC0202] stroke-[3]" />}
+                          </div>
+                        );
+                      })}
+
+                      {filteredRegisteredMechanics.length === 0 && (
+                        <div className="p-4 text-center text-xs text-gray-400 font-medium">
+                          No registered mechanics found. Add mechanics in User Management first.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold transition-colors cursor-pointer border border-gray-300"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium shadow-sm transition-colors">
-                  Save Job Card
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-[#BC0202] hover:bg-[#830000] text-white rounded-xl font-bold shadow-md transition-colors cursor-pointer border border-[#830000]"
+                >
+                  Save Card
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 };

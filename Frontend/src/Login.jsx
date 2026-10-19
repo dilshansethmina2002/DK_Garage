@@ -1,115 +1,139 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Wrench, User, Lock, LogIn } from 'lucide-react';
+import { Lock, User, AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import dkLogo from './assets/dk-logo.webp';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setError(null);
+
+    const cleanUsername = username.trim();
+    if (!cleanUsername || !password) {
+      setError('Please enter both username and password.');
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const response = await axios.post('http://localhost:5000/api/auth/login', {
-        username,
+        username: cleanUsername,
         password
       });
 
-      // 1. Save the JWT and user data to local storage
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      const { token, user } = response.data;
 
-      // 2. Redirect to the Dashboard
-      navigate('/');
-      
+      // Store JWT and sanitized user metadata
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Role-based redirection (Owner/Admin -> Dashboard, Mechanic -> Job Cards)
+      if (user?.role === 'Mechanic') {
+        navigate('/job-cards');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
-      console.error("Login error:", err);
-      // Display the specific error message from the backend if available
-      setError(err.response?.data?.message || 'An error occurred during login.');
+      // Generic message prevents username enumeration attacks
+      setError(
+        err.response?.data?.message || 'Invalid credentials or unauthorized access.'
+      );
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
-            <Wrench className="w-8 h-8 text-white" />
-          </div>
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+
+        {/* Top Brand & Logo Banner */}
+        <div className="bg-white px-8 pt-8 pb-6 border-b border-slate-100 flex flex-col items-center text-center">
+          <img
+            src={dkLogo}
+            alt="DK Automobile Logo"
+            className="h-28 w-auto object-contain mb-3 select-none"
+            draggable="false"
+          />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+            <ShieldCheck className="w-3.5 h-3.5 text-red-600" />
+            Authorized Garage OS Portal
+          </span>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900">
-          Garage OS
-        </h2>
-        <p className="mt-2 text-center text-sm text-slate-500">
-          Sign in to manage your workshop
-        </p>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-sm sm:rounded-2xl border border-slate-100 sm:px-10">
-          
-          <form className="space-y-6" onSubmit={handleLogin}>
-            {error && (
-              <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm text-center font-medium border border-red-100">
-                {error}
-              </div>
-            )}
+        {/* Login Form Body */}
+        <div className="p-8">
+          {error && (
+            <div className="mb-6 p-3.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl flex items-center gap-2.5 font-medium">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
+          <form onSubmit={handleLogin} className="space-y-5" autoComplete="off">
             <div>
-              <label className="block text-sm font-medium text-slate-700">Username</label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400" />
-                </div>
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                Username
+              </label>
+              <div className="relative">
+                <User className="w-5 h-5 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
                 <input
                   type="text"
                   required
+                  maxLength={50}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-xl p-3 border outline-none transition-all"
-                  placeholder="Enter your username"
+                  placeholder="Enter your staff username"
+                  className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-red-600 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">Password</label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
-                </div>
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-5 h-5 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
+                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-slate-300 rounded-xl p-3 border outline-none transition-all"
                   placeholder="••••••••"
+                  className="w-full pl-11 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-red-600 transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                {loading ? 'Signing in...' : 'Sign In'}
-                {!loading && <LogIn className="w-4 h-4" />}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer ${isLoading ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+            >
+              {isLoading ? 'Verifying Credentials...' : 'Sign In to DK Automobile'}
+            </button>
           </form>
-
         </div>
       </div>
     </div>

@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+:root {
+  --dk-black: #000000;
+  --dk-dark-red: #830000;
+  --dk-crimson: #BC0202;
+  --dk-vivid-red: #FF0000;
+}
+
+/* Global scrollbar and selection styling in DK Automobile colors */
+::selection {
+  background-color: #BC0202;
+  color: #ffffff;
+}

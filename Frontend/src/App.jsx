@@ -8,6 +8,7 @@ import Login from './Login';
 import JobCardsList from './Pages/JobCardsList';
 import JobCardWorkspace from './Pages/JobCardWorkspace';
 import Vehicles from './Pages/Vehicles';
+import UserManagement from './Pages/UserManagement';
 
 // --- AXIOS INTERCEPTOR ---
 // This automatically attaches the JWT to every single request
@@ -41,7 +42,7 @@ function App() {
           <Route path="/customers" element={<div className="p-8 font-bold text-xl">Customers Coming Soon</div>} />
           <Route path="/reports" element={<div className="p-8 font-bold text-xl">Reports Coming Soon</div>} />
           <Route path="/finance" element={<div className="p-8 font-bold text-xl">Finance Coming Soon</div>} />
-          <Route path="/users" element={<div className="p-8 font-bold text-xl">User Management Coming Soon</div>} />
+          <Route path="/users" element={<UserManagement />} />
         </Route>
       </Routes>
     </BrowserRouter>
