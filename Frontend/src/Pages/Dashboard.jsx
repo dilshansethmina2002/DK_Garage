@@ -7,7 +7,7 @@ import {
 import {
   Car, Wrench, CircleDollarSign, Plus, Activity, AlertCircle,
   Package, Users, ClipboardList, X, ChevronRight, Clock, ArrowUpRight,
-  UserCheck, Check, ChevronDown, Search
+  UserCheck, Check, ChevronDown, Search, FileText, Sparkles
 } from 'lucide-react';
 
 const weeklyRevenue = [
@@ -18,6 +18,15 @@ const weeklyRevenue = [
   { name: 'Fri', revenue: 48000 },
   { name: 'Sat', revenue: 85000 },
   { name: 'Sun', revenue: 30000 },
+];
+
+const commonIssues = [
+  'Regular Service & Oil Change',
+  'Brake Pad Replacement / Noise',
+  'AC Not Cooling',
+  'Engine Check Light On',
+  'Suspension Knocking',
+  'Wheel Alignment & Balance'
 ];
 
 const Dashboard = () => {
@@ -37,7 +46,12 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    customerName: '', customerPhone: '', make: '', model: '', licensePlate: ''
+    customerName: '',
+    customerPhone: '',
+    make: '',
+    model: '',
+    licensePlate: '',
+    customerRequests: ''
   });
 
   const getAuthConfig = () => {
@@ -101,14 +115,39 @@ const Dashboard = () => {
   const fetchRegisteredMechanics = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/users/mechanics', getAuthConfig());
-      setRegisteredMechanics(res.data);
-    } catch (err) {
-      console.warn("Could not load mechanics list:", err);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setRegisteredMechanics(res.data);
+      } else {
+        const fallbackRes = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+        const filtered = (fallbackRes.data || []).filter(u =>
+          String(u.role).toLowerCase() === 'mechanic'
+        );
+        setRegisteredMechanics(filtered);
+      }
+    } catch {
+      try {
+        const fallbackRes = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+        const filtered = (fallbackRes.data || []).filter(u =>
+          String(u.role).toLowerCase() === 'mechanic'
+        );
+        setRegisteredMechanics(filtered);
+      } catch (fallbackErr) {
+        console.warn("Could not load mechanics list:", fallbackErr);
+      }
     }
   };
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const addQuickIssue = (issue) => {
+    setFormData(prev => ({
+      ...prev,
+      customerRequests: prev.customerRequests
+        ? `${prev.customerRequests.trim()}\n• ${issue}`
+        : `• ${issue}`
+    }));
   };
 
   const toggleMechanicSelection = (mechanicName) => {
@@ -135,7 +174,14 @@ const Dashboard = () => {
     try {
       await axios.post('http://localhost:5000/api/jobs', payload, getAuthConfig());
       setIsModalOpen(false);
-      setFormData({ customerName: '', customerPhone: '', make: '', model: '', licensePlate: '' });
+      setFormData({
+        customerName: '',
+        customerPhone: '',
+        make: '',
+        model: '',
+        licensePlate: '',
+        customerRequests: ''
+      });
       setSelectedMechanics([]);
       setMechSearch('');
       fetchJobs();
@@ -196,7 +242,7 @@ const Dashboard = () => {
             System Live
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-950">
-            DK Automobile Dashboard[cite: 1]
+            DK Automobile Dashboard
           </h1>
           <p className="text-gray-600 text-xs sm:text-sm mt-1">
             Logged in as <strong className="text-gray-950 font-bold">{currentUser.username}</strong>
@@ -207,7 +253,14 @@ const Dashboard = () => {
 
         <button
           onClick={() => {
-            setFormData({ customerName: '', customerPhone: '', make: '', model: '', licensePlate: '' });
+            setFormData({
+              customerName: '',
+              customerPhone: '',
+              make: '',
+              model: '',
+              licensePlate: '',
+              customerRequests: ''
+            });
             setSelectedMechanics([]);
             setMechSearch('');
             setIsModalOpen(true);
@@ -377,7 +430,7 @@ const Dashboard = () => {
               to="/job-cards"
               className="text-xs font-black text-slate-800 hover:text-black transition-colors flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-gray-300 shadow-xs"
             >
-              View All[cite: 1] <ChevronRight className="w-3.5 h-3.5" />
+              View All <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
@@ -534,13 +587,15 @@ const Dashboard = () => {
 
       </div>
 
-      {/* Creation Modal with Registered Mechanics Multi-Select Dropdown */}
+      {/* Creation Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl border-2 border-gray-400 p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="bg-white w-full max-w-lg rounded-2xl border-2 border-gray-400 p-6 max-h-[92vh] overflow-y-auto shadow-2xl">
 
             <div className="flex items-center justify-between pb-3 border-b-2 border-gray-200 mb-4">
-              <h2 className="text-lg font-black text-gray-950">Create Job Card</h2>
+              <h2 className="text-lg font-black text-gray-950 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#BC0202]" /> Create Job Card
+              </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="p-1 text-gray-500 hover:text-gray-950 rounded-lg hover:bg-gray-100 cursor-pointer"
@@ -550,37 +605,39 @@ const Dashboard = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm">
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">
-                  Customer Name *
-                </label>
-                <input
-                  type="text"
-                  name="customerName"
-                  required
-                  placeholder="e.g. Ruwan Silva"
-                  value={formData.customerName}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">
+                    Customer Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="customerName"
+                    required
+                    placeholder="e.g. Ruwan Silva"
+                    value={formData.customerName}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="customerPhone"
+                    required
+                    placeholder="0771234567"
+                    value={formData.customerPhone}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">
-                  Phone Number *
-                </label>
-                <input
-                  type="text"
-                  name="customerPhone"
-                  required
-                  placeholder="0771234567"
-                  value={formData.customerPhone}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">
                     Make *
@@ -609,24 +666,58 @@ const Dashboard = () => {
                     className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
                   />
                 </div>
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1">
+                    Plate Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="licensePlate"
+                    required
+                    placeholder="WP KV-2008"
+                    value={formData.licensePlate}
+                    onChange={handleInputChange}
+                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 uppercase font-black outline-none focus:border-slate-800"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">
-                  License Plate *
-                </label>
-                <input
-                  type="text"
-                  name="licensePlate"
+              {/* REPORTED ISSUES / CUSTOMER REQUESTS AREA */}
+              <div className="bg-gray-50 border-2 border-gray-200 p-3.5 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block font-black text-gray-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#BC0202]" />
+                    Customer Request & Issues Reported *
+                  </label>
+                  <span className="text-[11px] text-gray-500 font-semibold">Tap to auto-insert</span>
+                </div>
+
+                {/* Quick select tags */}
+                <div className="flex flex-wrap gap-1.5">
+                  {commonIssues.map((issue, idx) => (
+                    <button
+                      type="button"
+                      key={idx}
+                      onClick={() => addQuickIssue(issue)}
+                      className="text-[11px] font-bold px-2 py-1 bg-white hover:bg-gray-200 border border-gray-300 rounded-lg text-gray-700 transition-colors cursor-pointer"
+                    >
+                      + {issue}
+                    </button>
+                  ))}
+                </div>
+
+                <textarea
+                  name="customerRequests"
                   required
-                  placeholder="WP KV-2008"
-                  value={formData.licensePlate}
+                  rows={3}
+                  placeholder="Detail the issues reported by customer (e.g. Brake noise when stopping, engine hesitation at 60km/h, routine oil change)..."
+                  value={formData.customerRequests}
                   onChange={handleInputChange}
-                  className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 uppercase font-black outline-none focus:border-slate-800"
+                  className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800 resize-none text-xs sm:text-sm font-medium"
                 />
               </div>
 
-              {/* USER-FRIENDLY REGISTERED MECHANICS DROPDOWN & TAG PICKER */}
+              {/* REGISTERED MECHANICS DROPDOWN & TAG PICKER */}
               <div className="relative" ref={dropdownRef}>
                 <label className="block font-bold text-gray-700 mb-1">
                   Assign Registered Mechanics *
@@ -684,8 +775,8 @@ const Dashboard = () => {
                             key={m._id}
                             onClick={() => toggleMechanicSelection(m.name)}
                             className={`p-2.5 flex items-center justify-between text-xs font-bold cursor-pointer transition-colors ${isSelected
-                                ? 'bg-slate-100 text-slate-900'
-                                : 'hover:bg-gray-50 text-gray-700'
+                              ? 'bg-slate-100 text-slate-900'
+                              : 'hover:bg-gray-50 text-gray-700'
                               }`}
                           >
                             <div>

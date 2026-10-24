@@ -1,10 +1,10 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import letterheadBg from '../assets/letterhead-template.jpg';
 
 export const generateJobReceipt = (job) => {
-    const doc = new jsPDF();
+    const doc = new jsPDF('p', 'mm', 'a4');
 
-    // Safely sanitize strings before rendering into the PDF
     const safeText = (val, fallback = 'N/A') =>
         val !== undefined && val !== null && String(val).trim() !== ''
             ? String(val).trim()
@@ -24,189 +24,236 @@ export const generateJobReceipt = (job) => {
         ? `${safeText(job.vehicle.make)} ${safeText(job.vehicle.model, '')}`
         : safeText(job.vehicle);
     const licensePlate = safeText(job.vehicle?.licensePlate, 'NO-PLATE');
-    const mechanic = safeText(job.mechanic);
+
+    const mechanicsList = Array.isArray(job.mechanics) && job.mechanics.length > 0
+        ? job.mechanics.join(', ')
+        : safeText(job.mechanic);
+
     const status = safeText(job.status, 'Pending Inspection');
+    const customerRequests = safeText(job.customerRequests || job.notes, '');
 
-    // --- 1. HEADER BANNER ---
-    doc.setFillColor(15, 23, 42); // Slate-900
-    doc.rect(0, 0, 210, 38, 'F');
+    // 1. BACKGROUND TEMPLATE
+    try {
+        doc.addImage(letterheadBg, 'JPEG', 0, 0, 210, 297);
+    } catch (e) {
+        console.warn('Letterhead image error:', e);
+    }
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.text('DK GARAGE OS', 14, 18);
+    // 2. RECEIPT META BAR (Shifted down to Y = 66 to give clear breathing room below disclaimer)
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(14, 66, 182, 8.5, 1.5, 1.5, 'FD');
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(203, 213, 225);
-    doc.text('Official Service & Repair Receipt', 14, 25);
-    doc.text('Generated Securely via Garage Management System', 14, 31);
-
-    // Right-side Receipt Meta
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text(`RECEIPT #${jobId}`, 196, 18, { align: 'right' });
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(`Date: ${jobDate}`, 196, 25, { align: 'right' });
-    doc.text(`Status: ${status.toUpperCase()}`, 196, 31, { align: 'right' });
-
-    // --- 2. CUSTOMER & VEHICLE INFO BOXES ---
-    doc.setFillColor(248, 250, 252); // Slate-50
-    doc.setDrawColor(226, 232, 240); // Slate-200
-    doc.roundedRect(14, 45, 88, 34, 2, 2, 'FD');
-    doc.roundedRect(108, 45, 88, 34, 2, 2, 'FD');
-
-    // Left Box: Customer Details
-    doc.setTextColor(71, 85, 105);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.text('BILL TO (CUSTOMER)', 18, 52);
+    doc.setTextColor(188, 2, 2);
+    doc.text(`SERVICE INVOICE & RECEIPT — #${jobId}`, 18, 71.5);
+
+    doc.setFontSize(8);
+    doc.setTextColor(51, 65, 85);
+    doc.text(`Date: ${jobDate}  |  Status: ${status.toUpperCase()}`, 192, 71.5, { align: 'right' });
+
+    // 3. CUSTOMER & VEHICLE BOXES (Shifted down to Y = 77.5)
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(14, 77.5, 89, 27, 1.5, 1.5, 'FD');
+    doc.roundedRect(107, 77.5, 89, 27, 1.5, 1.5, 'FD');
+
+    // Customer Information
+    doc.setTextColor(188, 2, 2);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text('CUSTOMER / BILL TO', 18, 83);
 
     doc.setTextColor(15, 23, 42);
-    doc.setFontSize(11);
-    doc.text(customerName, 18, 60);
+    doc.setFontSize(9.5);
+    doc.text(customerName, 18, 89);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
-    doc.text(`Phone: ${customerPhone}`, 18, 67);
-    doc.text(`Delivery Due: ${deliveryDate}`, 18, 73);
+    doc.text(`Contact: ${customerPhone}`, 18, 95);
+    doc.text(`Delivery Due: ${deliveryDate}`, 18, 100);
 
-    // Right Box: Vehicle Details
+    // Vehicle Information
+    doc.setTextColor(188, 2, 2);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('VEHICLE & SERVICE DETAILS', 112, 52);
+    doc.setFontSize(7.5);
+    doc.text('VEHICLE & WORKSHOP ALLOCATION', 111, 83);
 
     doc.setTextColor(15, 23, 42);
-    doc.setFontSize(11);
-    doc.text(`${vehicleMakeModel}`, 112, 60);
+    doc.setFontSize(9.5);
+    doc.text(vehicleMakeModel, 111, 89);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(7.5);
     doc.setTextColor(71, 85, 105);
-    doc.text(`License Plate: ${licensePlate}`, 112, 67);
-    doc.text(`Assigned Mechanic: ${mechanic}`, 112, 73);
+    doc.text(`Plate No: ${licensePlate}`, 111, 95);
 
-    // --- 3. SERVICES & SPARE PARTS TABLE ---
-    const lineItems = Array.isArray(job.lineItems) ? job.lineItems : [];
-    const tableRows =
-        lineItems.length > 0
-            ? lineItems.map((item, index) => [
-                index + 1,
-                safeText(item.name, 'Service Item'),
-                safeText(item.type, 'Service'),
-                `LKR ${(Number(item.rate) || 0).toLocaleString('en-LK', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                })}`,
-            ])
-            : [['1', 'Standard Inspection / General Service', 'Service', 'LKR 0.00']];
+    const splitMech = doc.splitTextToSize(`Mechanic: ${mechanicsList}`, 80);
+    doc.text(splitMech, 111, 100);
+
+    let currentY = 107.5;
+
+    // 4. REPORTED ISSUES / CUSTOMER COMPLAINTS (IF PRESENT)
+    if (customerRequests) {
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+
+        const splitReqs = doc.splitTextToSize(customerRequests, 174);
+        const reqBoxHeight = Math.max(10, splitReqs.length * 3.6 + 6);
+
+        doc.roundedRect(14, currentY, 182, reqBoxHeight, 1.5, 1.5, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(188, 2, 2);
+        doc.text('REPORTED ISSUES & CUSTOMER REQUESTS:', 18, currentY + 4.5);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text(splitReqs, 18, currentY + 8.5);
+
+        currentY += reqBoxHeight + 3;
+    }
+
+    // 5. EXTRACT & SEPARATE SERVICES AND SPARE PARTS
+    const rawItems = Array.isArray(job.lineItems) && job.lineItems.length > 0
+        ? job.lineItems
+        : Array.isArray(job.items) && job.items.length > 0
+            ? job.items
+            : [];
+
+    const serviceItems = rawItems.filter(i => (i.type || 'Service') === 'Service');
+    const partItems = rawItems.filter(i => i.type === 'Part');
+
+    const tableRows = [];
+    let itemCounter = 1;
+
+    const formatLKR = (val) =>
+        `LKR ${(Number(val) || 0).toLocaleString('en-LK', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        })}`;
+
+    // Services rows
+    if (serviceItems.length > 0) {
+        tableRows.push([
+            { content: 'SERVICES & LABOUR CHARGES', colSpan: 3, styles: { fillColor: [241, 245, 249], fontStyle: 'bold', textColor: [15, 23, 42] } }
+        ]);
+        serviceItems.forEach(item => {
+            tableRows.push([
+                itemCounter++,
+                safeText(item.name, 'Labour Service'),
+                formatLKR(item.rate)
+            ]);
+        });
+    }
+
+    // Parts rows
+    if (partItems.length > 0) {
+        tableRows.push([
+            { content: 'REPLACED SPARE PARTS', colSpan: 3, styles: { fillColor: [241, 245, 249], fontStyle: 'bold', textColor: [15, 23, 42] } }
+        ]);
+        partItems.forEach(item => {
+            tableRows.push([
+                itemCounter++,
+                safeText(item.name, 'Spare Part'),
+                formatLKR(item.rate)
+            ]);
+        });
+    }
+
+    if (tableRows.length === 0) {
+        tableRows.push(['1', 'General Mechanical Service & Repair', formatLKR(job.totalCost || 0)]);
+    }
 
     autoTable(doc, {
-        startY: 86,
-        head: [['#', 'Description', 'Category', 'Amount (LKR)']],
+        startY: currentY,
+        head: [['#', 'Description of Services & Replaced Parts', 'Amount (LKR)']],
         body: tableRows,
         theme: 'grid',
         headStyles: {
-            fillColor: [30, 41, 59], // Slate-800
+            fillColor: [188, 2, 2],
             textColor: 255,
             fontStyle: 'bold',
-            fontSize: 9,
+            fontSize: 8,
         },
         bodyStyles: {
-            fontSize: 9,
+            fontSize: 8,
             textColor: [30, 41, 59],
+            fillColor: [255, 255, 255],
+            cellPadding: 2,
         },
         columnStyles: {
             0: { cellWidth: 12, halign: 'center' },
-            1: { cellWidth: 98 },
-            2: { cellWidth: 35, halign: 'center' },
-            3: { cellWidth: 37, halign: 'right' },
-        },
+            1: { cellWidth: 130 },
+            2: { cellWidth: 40, halign: 'right' }
+        }
     });
 
-    let finalY = doc.lastAutoTable.finalY + 8;
+    let finalY = doc.lastAutoTable.finalY + 5;
 
-    // --- 4. DIAGNOSTIC NOTES (LEFT) & FINANCIAL SUMMARY (RIGHT) ---
-    const subtotal = Number(job.subtotal) || 0;
+    // 6. REMARKS & FINANCIAL TOTALS
+    const subtotal = Number(job.subtotal) || Number(job.totalCost) || 0;
     const tax = Number(job.tax) || 0;
-    const totalCost = Number(job.totalCost) || subtotal + tax;
+    const totalCost = Number(job.totalCost) || (subtotal + tax);
 
-    // Repair Notes on the left
+    // Workshop Remarks (Left)
     if (job.notes && String(job.notes).trim() !== '') {
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(14, finalY, 100, 26, 1.5, 1.5, 'FD');
+
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(71, 85, 105);
-        doc.text('MECHANIC / DIAGNOSTIC NOTES:', 14, finalY + 4);
+        doc.setFontSize(7.5);
+        doc.setTextColor(188, 2, 2);
+        doc.text('WORKSHOP DIAGNOSIS & REMARKS:', 18, finalY + 4.5);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
+        doc.setFontSize(7.5);
         doc.setTextColor(51, 65, 85);
-        const splitNotes = doc.splitTextToSize(String(job.notes).trim(), 95);
-        doc.text(splitNotes, 14, finalY + 10);
+        const splitNotes = doc.splitTextToSize(String(job.notes).trim(), 92);
+        doc.text(splitNotes, 18, finalY + 9);
     }
 
-    // Financial Breakdown Box on the right
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(120, finalY, 76, 30, 2, 2, 'FD');
+    // Totals Box (Right)
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(118, finalY, 78, 26, 1.5, 1.5, 'FD');
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(71, 85, 105);
-    doc.text('Subtotal:', 125, finalY + 8);
-    doc.text(
-        `LKR ${subtotal.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`,
-        191,
-        finalY + 8,
-        { align: 'right' }
-    );
+    doc.text('Subtotal:', 123, finalY + 6.5);
+    doc.text(formatLKR(subtotal), 191, finalY + 6.5, { align: 'right' });
 
-    doc.text('Tax (GST 18%):', 125, finalY + 15);
-    doc.text(
-        `LKR ${tax.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`,
-        191,
-        finalY + 15,
-        { align: 'right' }
-    );
+    doc.text('Tax (GST / VAT 18%):', 123, finalY + 12.5);
+    doc.text(formatLKR(tax), 191, finalY + 12.5, { align: 'right' });
 
     doc.setDrawColor(203, 213, 225);
-    doc.line(125, finalY + 19, 191, finalY + 19);
+    doc.line(123, finalY + 16, 191, finalY + 16);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42);
-    doc.text('Final Total:', 125, finalY + 26);
-    doc.text(
-        `LKR ${totalCost.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`,
-        191,
-        finalY + 26,
-        { align: 'right' }
-    );
+    doc.setFontSize(10);
+    doc.setTextColor(188, 2, 2);
+    doc.text('Total Payable:', 123, finalY + 22);
+    doc.text(formatLKR(totalCost), 191, finalY + 22, { align: 'right' });
 
-    // --- 5. SIGNATURE & FOOTER ---
+    // 7. SIGNATURES
     const footerY = 265;
-    doc.setDrawColor(203, 213, 225);
-    doc.line(14, footerY, 74, footerY);
-    doc.line(136, footerY, 196, footerY);
+    doc.setDrawColor(148, 163, 184);
+    doc.setLineWidth(0.3);
+    doc.line(18, footerY, 74, footerY);
+    doc.line(136, footerY, 192, footerY);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139);
-    doc.text('Customer Signature', 44, footerY + 5, { align: 'center' });
-    doc.text('Authorized Garage Stamp', 166, footerY + 5, { align: 'center' });
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('Customer Signature', 46, footerY + 4.5, { align: 'center' });
+    doc.text('Authorized Garage Stamp & Signature', 164, footerY + 4.5, { align: 'center' });
 
-    doc.setFontSize(8);
-    doc.text(
-        'Thank you for choosing our workshop! Please retain this receipt for warranty claims.',
-        105,
-        285,
-        { align: 'center' }
-    );
-
-    // Save the PDF and open print-ready view in a new tab
-    doc.save(`Receipt-${jobId}.pdf`);
+    // Download PDF
+    doc.save(`DK_Automobile_Receipt_${jobId}.pdf`);
 };

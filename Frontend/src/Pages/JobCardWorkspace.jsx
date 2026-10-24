@@ -1,12 +1,23 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
-  User, Wrench, Plus, Trash2, Camera, FileText, CheckCircle, AlertCircle, ArrowLeft
+  User, Wrench, Plus, Trash2, Camera, FileText, CheckCircle,
+  AlertCircle, ArrowLeft, EyeOff, TrendingUp, Sparkles, Check,
+  X, ChevronDown, Search, ShieldCheck
 } from 'lucide-react';
 
+const commonIssues = [
+  'Regular Service & Oil Change',
+  'Brake Pad Replacement / Noise',
+  'AC Not Cooling',
+  'Engine Check Light On',
+  'Suspension Knocking',
+  'Wheel Alignment & Balance'
+];
+
 const JobCardWorkspace = () => {
-  const { jobId } = useParams(); // Present if clicked "View" from JobCardsList
+  const { jobId } = useParams();
   const isViewOrEditMode = Boolean(jobId);
   const navigate = useNavigate();
 
@@ -20,9 +31,16 @@ const JobCardWorkspace = () => {
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [licensePlate, setLicensePlate] = useState('');
+  const [customerRequests, setCustomerRequests] = useState('');
 
-  // Job Card Details State
-  const [mechanic, setMechanic] = useState('');
+  // Registered Mechanics State
+  const [registeredMechanics, setRegisteredMechanics] = useState([]);
+  const [selectedMechanics, setSelectedMechanics] = useState([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mechSearch, setMechSearch] = useState('');
+  const dropdownRef = useRef(null);
+
+  // Job Details
   const [jobDate, setJobDate] = useState(new Date().toISOString().split('T')[0]);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [priority, setPriority] = useState('Medium');
@@ -30,19 +48,65 @@ const JobCardWorkspace = () => {
   const [notes, setNotes] = useState('');
   const [applyGST, setApplyGST] = useState(false);
 
-  // Dynamic Line Items State
+  // Dynamic Line Items State with costPrice (actual cost) and rate (charging cost)
   const [items, setItems] = useState([
-    { id: 1, type: 'Service', name: 'Labour Service', rate: 0 }
+    { id: 1, type: 'Service', name: 'Labour Service', costPrice: 0, rate: 0 }
   ]);
 
-  // Fetch Existing Job Card if viewing a specific card
+  const getAuthConfig = () => {
+    const token = localStorage.getItem('token');
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    };
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch registered mechanics from DB
+  useEffect(() => {
+    const fetchMechanics = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/users/mechanics', getAuthConfig());
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setRegisteredMechanics(res.data);
+        } else {
+          const fallbackRes = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+          const filtered = (fallbackRes.data || []).filter(u => String(u.role).toLowerCase() === 'mechanic');
+          setRegisteredMechanics(filtered);
+        }
+      } catch {
+        try {
+          const fallbackRes = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+          const filtered = (fallbackRes.data || []).filter(u => String(u.role).toLowerCase() === 'mechanic');
+          setRegisteredMechanics(filtered);
+        } catch (fallbackErr) {
+          console.warn('Could not load mechanics list:', fallbackErr);
+        }
+      }
+    };
+
+    fetchMechanics();
+  }, []);
+
+  // Fetch Existing Job Card if in Edit/View mode
   useEffect(() => {
     if (!isViewOrEditMode) return;
 
     const fetchExistingJob = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:5000/api/jobs/${jobId}`);
+        const response = await axios.get(`http://localhost:5000/api/jobs/${jobId}`, getAuthConfig());
         const job = response.data;
 
         setCustomerName(job.customer?.name || '');
@@ -50,7 +114,15 @@ const JobCardWorkspace = () => {
         setMake(job.vehicle?.make || '');
         setModel(job.vehicle?.model || '');
         setLicensePlate(job.vehicle?.licensePlate || '');
-        setMechanic(job.mechanic || '');
+        setCustomerRequests(job.customerRequests || job.notes || '');
+
+        // Mechanics list handling
+        if (Array.isArray(job.mechanics) && job.mechanics.length > 0) {
+          setSelectedMechanics(job.mechanics);
+        } else if (job.mechanic) {
+          setSelectedMechanics(job.mechanic.split(',').map(m => m.trim()).filter(Boolean));
+        }
+
         setPriority(job.priority || 'Medium');
         setStatus(job.status || 'Pending Inspection');
         setJobDate(job.jobDate ? new Date(job.jobDate).toISOString().split('T')[0] : '');
@@ -63,6 +135,7 @@ const JobCardWorkspace = () => {
             id: idx + 1,
             type: item.type || 'Service',
             name: item.name || '',
+            costPrice: item.costPrice || 0,
             rate: item.rate || 0
           })));
         }
@@ -82,32 +155,52 @@ const JobCardWorkspace = () => {
     fetchExistingJob();
   }, [jobId, isViewOrEditMode, navigate]);
 
-  // Derived Financial Calculations
+  // Derived Financial Calculations (Actual vs. Charging)
   const calculations = useMemo(() => {
-    const servicesTotal = items
-      .filter(i => i.type === 'Service')
-      .reduce((sum, i) => sum + (Math.max(0, Number(i.rate)) || 0), 0);
-    const partsTotal = items
-      .filter(i => i.type === 'Part')
-      .reduce((sum, i) => sum + (Math.max(0, Number(i.rate)) || 0), 0);
+    let totalActualCost = 0;
+    let servicesBilled = 0;
+    let partsBilled = 0;
 
-    const subtotal = servicesTotal + partsTotal;
+    items.forEach(i => {
+      const actual = Math.max(0, Number(i.costPrice) || 0);
+      const charging = Math.max(0, Number(i.rate) || 0);
+
+      totalActualCost += actual;
+      if (i.type === 'Service') {
+        servicesBilled += charging;
+      } else {
+        partsBilled += charging;
+      }
+    });
+
+    const subtotal = servicesBilled + partsBilled;
     const tax = applyGST ? subtotal * 0.18 : 0;
-    const total = subtotal + tax;
+    const totalBilled = subtotal + tax;
+    const grossProfit = subtotal - totalActualCost;
+    const marginPercent = subtotal > 0 ? ((grossProfit / subtotal) * 100).toFixed(1) : '0.0';
 
     return {
-      servicesTotal,
-      partsTotal,
-      subtotal,
-      tax,
-      total,
+      totalActualCost: totalActualCost || 0,
+      servicesBilled: servicesBilled || 0,
+      servicesTotal: servicesBilled || 0,   // Alias for compatibility
+      partsBilled: partsBilled || 0,
+      partsTotal: partsBilled || 0,         // Alias to fix line 403
+      subtotal: subtotal || 0,
+      tax: tax || 0,
+      totalBilled: totalBilled || 0,
+      total: totalBilled || 0,              // Alias for compatibility
+      grossProfit: grossProfit || 0,
+      marginPercent,
       serviceCount: items.filter(i => i.type === 'Service').length,
       partCount: items.filter(i => i.type === 'Part').length
     };
   }, [items, applyGST]);
 
   const handleAddItem = () => {
-    setItems([...items, { id: Date.now(), type: 'Service', name: '', rate: 0 }]);
+    setItems([
+      ...items,
+      { id: Date.now(), type: 'Part', name: '', costPrice: 0, rate: 0 }
+    ]);
   };
 
   const handleRemoveItem = (id) => {
@@ -121,8 +214,25 @@ const JobCardWorkspace = () => {
     ));
   };
 
+  const toggleMechanicSelection = (mechanicName) => {
+    if (selectedMechanics.includes(mechanicName)) {
+      setSelectedMechanics(selectedMechanics.filter(m => m !== mechanicName));
+    } else {
+      setSelectedMechanics([...selectedMechanics, mechanicName]);
+    }
+  };
+
+  const addQuickIssue = (issue) => {
+    setCustomerRequests(prev => prev ? `${prev.trim()}\n• ${issue}` : `• ${issue}`);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (selectedMechanics.length === 0) {
+      alert('Please assign at least one registered mechanic.');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -132,15 +242,18 @@ const JobCardWorkspace = () => {
       make,
       model,
       licensePlate,
-      mechanic,
+      customerRequests,
+      mechanics: selectedMechanics,
+      mechanic: selectedMechanics.join(', '),
       priority,
       status,
       jobDate,
       deliveryDate,
-      notes,
-      lineItems: items.map(({ type, name, rate }) => ({
+      notes: notes || customerRequests,
+      lineItems: items.map(({ type, name, costPrice, rate }) => ({
         type,
         name,
+        costPrice: Number(costPrice) || 0,
         rate: Number(rate) || 0
       })),
       applyGST
@@ -148,9 +261,9 @@ const JobCardWorkspace = () => {
 
     try {
       if (isViewOrEditMode) {
-        await axios.put(`http://localhost:5000/api/jobs/${jobId}`, payload);
+        await axios.put(`http://localhost:5000/api/jobs/${jobId}`, payload, getAuthConfig());
       } else {
-        await axios.post('http://localhost:5000/api/jobs', payload);
+        await axios.post('http://localhost:5000/api/jobs', payload, getAuthConfig());
       }
       navigate('/job-cards');
     } catch (err) {
@@ -160,189 +273,490 @@ const JobCardWorkspace = () => {
     }
   };
 
+  const filteredRegisteredMechanics = registeredMechanics.filter(m =>
+    (m.name || '').toLowerCase().includes(mechSearch.toLowerCase()) ||
+    (m.username || '').toLowerCase().includes(mechSearch.toLowerCase())
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
-        <Wrench className="w-8 h-8 text-indigo-500 animate-spin" />
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
+        <Wrench className="w-8 h-8 text-gray-700 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-8 font-sans text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans text-gray-900 flex flex-col">
 
       {/* Top Header */}
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
+          <h1 className="text-2xl font-black tracking-tight text-gray-950">
             {isViewOrEditMode ? `Job Card Workspace — ${jobId}` : 'Job Card Workspace'}
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Create customers, register vehicles, attach media, and build job cards.
+          <p className="text-gray-600 text-xs sm:text-sm mt-1">
+            Configure vehicle diagnostics, service charges, cost prices, and mechanic allocation.
           </p>
         </div>
 
         <Link
           to="/job-cards"
-          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 flex items-center gap-2 shadow-xs"
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 border-2 border-gray-300 rounded-xl text-xs font-bold text-gray-800 flex items-center gap-2 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Job Cards
         </Link>
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 flex items-center gap-2 border border-red-100">
-          <AlertCircle className="w-5 h-5" /> {error}
+        <div className="bg-red-50 border-2 border-red-300 text-red-900 p-4 rounded-xl mb-6 flex items-center gap-2 text-sm shadow-sm">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0" /> {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="flex-1 grid grid-cols-1 xl:grid-cols-4 gap-6">
 
-        {/* Left Sidebar Panel */}
+        {/* Left Column: Customer, Vehicle, & Financial Summary */}
         <div className="xl:col-span-1 space-y-6">
 
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4 border-b border-slate-100 pb-2">
-              <User className="w-4 h-4 text-indigo-500" /> Customer & Vehicle
+          {/* Customer & Vehicle Information */}
+          <div className="bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm">
+            <h3 className="font-black text-gray-950 flex items-center gap-2 mb-4 border-b-2 border-gray-100 pb-2.5 text-sm uppercase tracking-wide">
+              <User className="w-4 h-4 text-gray-700" /> Customer & Vehicle
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase">Customer Name *</label>
-                <input type="text" required value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="e.g. Jatin Patel" className="w-full mt-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="text-xs font-bold text-gray-600 uppercase">Customer Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={customerName}
+                  onChange={e => setCustomerName(e.target.value)}
+                  placeholder="e.g. Kasun Perera"
+                  className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-sm outline-none focus:border-slate-800 font-medium"
+                />
               </div>
+
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase">Phone Number *</label>
-                <input type="text" required value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="e.g. 0771234567" className="w-full mt-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="text-xs font-bold text-gray-600 uppercase">Phone Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={customerPhone}
+                  onChange={e => setCustomerPhone(e.target.value)}
+                  placeholder="0771234567"
+                  className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-sm outline-none focus:border-slate-800 font-medium"
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase">Make *</label>
-                  <input type="text" required value={make} onChange={e => setMake(e.target.value)} placeholder="Toyota" className="w-full mt-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <label className="text-xs font-bold text-gray-600 uppercase">Make *</label>
+                  <input
+                    type="text"
+                    required
+                    value={make}
+                    onChange={e => setMake(e.target.value)}
+                    placeholder="Toyota"
+                    className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-sm outline-none focus:border-slate-800 font-medium"
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 uppercase">Model *</label>
-                  <input type="text" required value={model} onChange={e => setModel(e.target.value)} placeholder="Yaris" className="w-full mt-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <label className="text-xs font-bold text-gray-600 uppercase">Model *</label>
+                  <input
+                    type="text"
+                    required
+                    value={model}
+                    onChange={e => setModel(e.target.value)}
+                    placeholder="Yaris"
+                    className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-sm outline-none focus:border-slate-800 font-medium"
+                  />
                 </div>
               </div>
+
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase">License Plate *</label>
-                <input type="text" required value={licensePlate} onChange={e => setLicensePlate(e.target.value)} placeholder="e.g. WP KV-1234" className="w-full mt-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase" />
+                <label className="text-xs font-bold text-gray-600 uppercase">Plate Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={licensePlate}
+                  onChange={e => setLicensePlate(e.target.value)}
+                  placeholder="WP KV-2008"
+                  className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-sm outline-none focus:border-slate-800 font-black uppercase"
+                />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4 border-b border-slate-100 pb-2">
-              <Camera className="w-4 h-4 text-indigo-500" /> Media Gallery
+          {/* Financial Summary & Gross Profit Breakdown */}
+          <div className="bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm space-y-4">
+            <h3 className="font-black text-gray-950 border-b-2 border-gray-100 pb-2.5 text-sm uppercase tracking-wide flex items-center justify-between">
+              <span>Financial Summary</span>
+              <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded font-bold uppercase">LKR</span>
             </h3>
-            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center text-slate-500 hover:bg-slate-50 transition-colors cursor-pointer">
-              <Plus className="w-6 h-6 mx-auto mb-2 text-slate-400" />
-              <p className="text-xs font-medium">Attach photos or documents</p>
+
+            {/* Customer Billed Section */}
+            <div className="space-y-2 text-xs font-medium text-gray-600">
+              <div className="flex justify-between">
+                <span>Services ({calculations.serviceCount}):</span>
+                <span className="font-bold text-gray-900">LKR {calculations.servicesBilled.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Spare Parts ({calculations.partCount}):</span>
+                <span className="font-bold text-gray-900">
+                  LKR {(calculations.partsBilled ?? 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900">
+                <span>Subtotal (Customer):</span>
+                <span>LKR {calculations.subtotal.toFixed(2)}</span>
+              </div>
+              {applyGST && (
+                <div className="flex justify-between text-gray-700">
+                  <span>GST (18%):</span>
+                  <span>LKR {calculations.tax.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm font-black text-slate-950 pt-1.5 border-t-2 border-gray-200">
+                <span>Final Billed:</span>
+                <span className="text-emerald-700">LKR {calculations.totalBilled.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Internal Garage Profitability Box (Hidden from Customer) */}
+            <div className="p-3.5 bg-amber-50/70 border-2 border-amber-300 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase text-amber-900 flex items-center gap-1.5">
+                  <EyeOff className="w-3.5 h-3.5 text-amber-700" />
+                  Internal Profitability
+                </span>
+                <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                  Internal Only
+                </span>
+              </div>
+
+              <div className="text-xs space-y-1.5 pt-1 text-amber-950">
+                <div className="flex justify-between font-medium">
+                  <span>Total Actual Cost:</span>
+                  <span className="font-bold">LKR {calculations.totalActualCost.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-black pt-1 border-t border-amber-200/80 text-sm">
+                  <span className="flex items-center gap-1">
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                    Gross Profit:
+                  </span>
+                  <span className={calculations.grossProfit >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+                    LKR {calculations.grossProfit.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[11px] font-bold text-amber-900">
+                  <span>Gross Margin:</span>
+                  <span>{calculations.marginPercent}%</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Media Attachment Placeholder */}
+          <div className="bg-white p-5 rounded-2xl border-2 border-gray-300 shadow-sm">
+            <h3 className="font-black text-gray-950 flex items-center gap-2 mb-3 border-b-2 border-gray-100 pb-2 text-sm uppercase tracking-wide">
+              <Camera className="w-4 h-4 text-gray-700" /> Inspection Media
+            </h3>
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-5 text-center text-gray-500 hover:bg-gray-50 transition-colors cursor-pointer">
+              <Plus className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+              <p className="text-xs font-bold text-gray-700">Attach photos or job notes</p>
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-            <h3 className="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Summary</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-slate-600"><span>Services</span><span>{calculations.serviceCount}</span></div>
-              <div className="flex justify-between text-slate-600"><span>Parts</span><span>{calculations.partCount}</span></div>
-              <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>LKR {calculations.subtotal.toFixed(2)}</span></div>
-              <div className="flex justify-between font-bold text-slate-900 mt-2 pt-2 border-t border-slate-100">
-                <span>Total</span><span>LKR {calculations.total.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Right Main Panel */}
+        {/* Right Main Column: Mechanics, Line Items, and Billing */}
         <div className="xl:col-span-3 space-y-6">
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3">Build Job Card</h2>
+          {/* Section 1: Assigned Mechanics & Customer Complaints */}
+          <div className="bg-white p-6 rounded-2xl border-2 border-gray-300 shadow-sm space-y-5">
+            <h2 className="text-base font-black text-gray-950 border-b-2 border-gray-100 pb-3 uppercase tracking-wide">
+              Mechanics & Reported Issues
+            </h2>
 
-            <div className="mb-6">
-              <label className="text-xs font-semibold text-slate-500 uppercase">Assigned Mechanic *</label>
-              <input type="text" required value={mechanic} onChange={e => setMechanic(e.target.value)} placeholder="Assign mechanic name..." className="w-full mt-1 p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
+            {/* Mechanics Tag Picker */}
+            <div className="relative" ref={dropdownRef}>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                Assigned Registered Mechanics * (Multiple Allowed)
+              </label>
 
-            {/* Services & Parts Array */}
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <Wrench className="w-4 h-4 text-indigo-500" /> Services & Parts
-                </h3>
-                <button type="button" onClick={handleAddItem} className="text-sm bg-red-600 text-white hover:bg-red-700 px-3.5 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1">
-                  <Plus className="w-4 h-4" /> Add Item
-                </button>
+              <div
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="w-full min-h-[46px] p-2 bg-white border-2 border-gray-300 rounded-xl flex items-center justify-between gap-2 cursor-pointer hover:border-slate-800 transition-colors"
+              >
+                <div className="flex flex-wrap gap-1.5 flex-1">
+                  {selectedMechanics.map(name => (
+                    <span
+                      key={name}
+                      onClick={e => {
+                        e.stopPropagation();
+                        toggleMechanicSelection(name);
+                      }}
+                      className="inline-flex items-center gap-1.5 bg-slate-900 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-xs group"
+                    >
+                      <Wrench className="w-3.5 h-3.5 text-gray-300" />
+                      {name}
+                      <X className="w-3.5 h-3.5 text-gray-400 group-hover:text-red-400" />
+                    </span>
+                  ))}
+                  {selectedMechanics.length === 0 && (
+                    <span className="text-gray-400 text-xs py-1 px-1">
+                      Click to select registered mechanic(s)...
+                    </span>
+                  )}
+                </div>
+                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </div>
 
-              <div className="space-y-3">
-                {items.map((item) => (
-                  <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200 items-end">
-                    <div className="md:col-span-3">
-                      <label className="text-xs font-semibold text-slate-500 block mb-1">Type *</label>
-                      <select
-                        value={item.type}
-                        onChange={(e) => handleItemChange(item.id, 'type', e.target.value)}
-                        className="p-2 border border-slate-200 rounded-md text-sm outline-none w-full bg-white"
-                      >
-                        <option value="Service">Services</option>
-                        <option value="Part">Spare Part</option>
-                      </select>
-                    </div>
-                    <div className="md:col-span-5">
-                      <label className="text-xs font-semibold text-slate-500 block mb-1">Service / Part Name *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Labour Service or Oil Filter"
-                        value={item.name}
-                        onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
-                        className="p-2 border border-slate-200 rounded-md text-sm outline-none w-full bg-white"
-                      />
-                    </div>
-                    <div className="md:col-span-3">
-                      <label className="text-xs font-semibold text-slate-500 block mb-1">Rate (LKR) *</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        required
-                        value={item.rate}
-                        onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)}
-                        className="p-2 border border-slate-200 rounded-md text-sm outline-none w-full bg-white"
-                      />
-                    </div>
-                    <div className="md:col-span-1 flex justify-end">
-                      <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors" disabled={items.length === 1}>
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+              {dropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border-2 border-gray-300 rounded-xl shadow-xl z-50 overflow-hidden">
+                  <div className="p-2 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
+                    <Search className="w-3.5 h-3.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search mechanics..."
+                      value={mechSearch}
+                      onChange={e => setMechSearch(e.target.value)}
+                      className="w-full bg-transparent text-xs outline-none text-gray-800 font-medium"
+                      autoFocus
+                    />
                   </div>
+
+                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-100">
+                    {filteredRegisteredMechanics.map(m => {
+                      const isSelected = selectedMechanics.includes(m.name);
+                      return (
+                        <div
+                          key={m._id}
+                          onClick={() => toggleMechanicSelection(m.name)}
+                          className={`p-2.5 flex items-center justify-between text-xs font-bold cursor-pointer transition-colors ${isSelected ? 'bg-slate-100 text-slate-900' : 'hover:bg-gray-50 text-gray-700'
+                            }`}
+                        >
+                          <div>
+                            <p className="font-extrabold">{m.name}</p>
+                            <p className="text-[11px] font-normal text-gray-500">@{m.username}</p>
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 text-[#BC0202] stroke-[3]" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Customer Requests & Quick Tags */}
+            <div className="bg-gray-50 border-2 border-gray-200 p-4 rounded-xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="block font-black text-gray-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#BC0202]" />
+                  Customer Reported Issues & Requests
+                </label>
+                <span className="text-[11px] text-gray-500 font-semibold">Tap to auto-insert</span>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {commonIssues.map((issue, idx) => (
+                  <button
+                    type="button"
+                    key={idx}
+                    onClick={() => addQuickIssue(issue)}
+                    className="text-[11px] font-bold px-2 py-1 bg-white hover:bg-gray-200 border border-gray-300 rounded-lg text-gray-700 transition-colors cursor-pointer"
+                  >
+                    + {issue}
+                  </button>
                 ))}
               </div>
+
+              <textarea
+                rows={3}
+                placeholder="Describe customer complaints and requested repairs (e.g. Brake noise, oil leak, vibration at 80 km/h)..."
+                value={customerRequests}
+                onChange={e => setCustomerRequests(e.target.value)}
+                className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800 text-xs sm:text-sm font-medium resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Section 2: Services & Parts with Actual vs. Charging Cost */}
+          <div className="bg-white p-6 rounded-2xl border-2 border-gray-300 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 border-b-2 border-gray-100 pb-3">
+              <div>
+                <h3 className="font-black text-gray-950 uppercase tracking-wide text-base flex items-center gap-2">
+                  <Wrench className="w-5 h-5 text-gray-800" /> Services & Spare Parts
+                </h3>
+                <p className="text-gray-500 text-xs mt-0.5">
+                  Actual Cost is internal only. Only the Charging Cost is printed on the customer bill.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddItem}
+                className="bg-[#BC0202] hover:bg-[#830000] text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" /> Add Item
+              </button>
             </div>
 
-            {/* Job Details */}
-            <h3 className="font-bold text-slate-800 mb-3 pt-2 border-t border-slate-100">Job Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Line Items Container */}
+            <div className="space-y-3.5">
+              {items.map((item, index) => {
+                const itemActual = Number(item.costPrice) || 0;
+                const itemCharging = Number(item.rate) || 0;
+                const itemProfit = itemCharging - itemActual;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="p-4 bg-gray-50/80 rounded-2xl border-2 border-gray-200 space-y-3"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+
+                      {/* Item Type */}
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-black text-gray-600 uppercase block mb-1">Type *</label>
+                        <select
+                          value={item.type}
+                          onChange={e => handleItemChange(item.id, 'type', e.target.value)}
+                          className="w-full p-2.5 border-2 border-gray-300 rounded-xl text-xs font-bold bg-white text-gray-800 outline-none focus:border-slate-800"
+                        >
+                          <option value="Service">Service</option>
+                          <option value="Part">Spare Part</option>
+                        </select>
+                      </div>
+
+                      {/* Item Name */}
+                      <div className="sm:col-span-4">
+                        <label className="text-[11px] font-black text-gray-600 uppercase block mb-1">
+                          Description / Item Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder={item.type === 'Service' ? 'e.g. Brake Caliper Servicing' : 'e.g. Front Brake Pads (Set)'}
+                          value={item.name}
+                          onChange={e => handleItemChange(item.id, 'name', e.target.value)}
+                          className="w-full p-2.5 border-2 border-gray-300 rounded-xl text-xs font-bold bg-white text-gray-900 outline-none focus:border-slate-800"
+                        />
+                      </div>
+
+                      {/* Actual Cost (Internal / Hidden from Bill) */}
+                      <div className="sm:col-span-3">
+                        <label className="text-[11px] font-black text-amber-900 uppercase flex items-center gap-1 mb-1">
+                          <EyeOff className="w-3 h-3 text-amber-700" />
+                          Actual Cost (LKR)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.costPrice}
+                          onChange={e => handleItemChange(item.id, 'costPrice', e.target.value)}
+                          className="w-full p-2.5 border-2 border-amber-300 bg-amber-50/40 rounded-xl text-xs font-black text-amber-950 outline-none focus:border-amber-600"
+                        />
+                      </div>
+
+                      {/* Charging Cost (Billed on Invoice) */}
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-black text-emerald-800 uppercase block mb-1">
+                          Billed Rate (LKR) *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          required
+                          placeholder="0.00"
+                          value={item.rate}
+                          onChange={e => handleItemChange(item.id, 'rate', e.target.value)}
+                          className="w-full p-2.5 border-2 border-emerald-300 bg-emerald-50/40 rounded-xl text-xs font-black text-emerald-950 outline-none focus:border-emerald-600"
+                        />
+                      </div>
+
+                      {/* Delete Button */}
+                      <div className="sm:col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.id)}
+                          disabled={items.length === 1}
+                          className="p-2.5 text-gray-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          title="Remove item"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Live Margin Calculation Indicator per item */}
+                    <div className="flex items-center justify-between text-[11px] pt-1 px-1 border-t border-gray-200 font-semibold text-gray-500">
+                      <span>Item #{index + 1} Billing Preview</span>
+                      <span className={itemProfit >= 0 ? 'text-emerald-700 font-bold' : 'text-red-600 font-bold'}>
+                        Garage Profit: LKR {itemProfit.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Section 3: Job Card Logistics & GST */}
+          <div className="bg-white p-6 rounded-2xl border-2 border-gray-300 shadow-sm space-y-4">
+            <h3 className="font-black text-gray-950 uppercase tracking-wide text-sm border-b-2 border-gray-100 pb-2">
+              Logistics & Delivery Schedule
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase">Job Date *</label>
-                <input type="date" required value={jobDate} onChange={e => setJobDate(e.target.value)} className="w-full mt-1 p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="text-xs font-bold text-gray-600 uppercase">Job Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={jobDate}
+                  onChange={e => setJobDate(e.target.value)}
+                  className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-xs font-bold outline-none focus:border-slate-800"
+                />
               </div>
+
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase">Expected Delivery Date</label>
-                <input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="w-full mt-1 p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label className="text-xs font-bold text-gray-600 uppercase">Estimated Delivery</label>
+                <input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={e => setDeliveryDate(e.target.value)}
+                  className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-xs font-bold outline-none focus:border-slate-800"
+                />
               </div>
+
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase">Priority</label>
-                <select value={priority} onChange={e => setPriority(e.target.value)} className="w-full mt-1 p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                  <option>Low</option><option>Medium</option><option>High</option><option>Urgent</option>
+                <label className="text-xs font-bold text-gray-600 uppercase">Priority</label>
+                <select
+                  value={priority}
+                  onChange={e => setPriority(e.target.value)}
+                  className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-xs font-bold outline-none focus:border-slate-800 bg-white"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Urgent">Urgent</option>
                 </select>
               </div>
+
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase">Status</label>
-                <select value={status} onChange={e => setStatus(e.target.value)} className="w-full mt-1 p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                <label className="text-xs font-bold text-gray-600 uppercase">Status</label>
+                <select
+                  value={status}
+                  onChange={e => setStatus(e.target.value)}
+                  className="w-full mt-1 p-2.5 border-2 border-gray-300 rounded-xl text-xs font-bold outline-none focus:border-slate-800 bg-white"
+                >
                   <option value="Pending Inspection">Pending Inspection</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Awaiting Parts">Awaiting Parts</option>
@@ -352,66 +766,52 @@ const JobCardWorkspace = () => {
               </div>
             </div>
 
-            {/* Diagnostic Notes */}
             <div>
-              <label className="text-xs font-semibold text-slate-500 uppercase mb-2 block">Work Description / Notes</label>
+              <label className="text-xs font-bold text-gray-600 uppercase block mb-1">
+                Internal Mechanic Notes & Repair Observations
+              </label>
               <textarea
+                rows={2}
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Front bumper damaged due to impact. Bumper removed, repaired/replaced, aligned, painted, and refitted."
-                className="w-full p-3 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none h-24"
+                placeholder="Diagnostic findings, technician notes, additional work recommendations..."
+                className="w-full p-2.5 border-2 border-gray-300 rounded-xl text-xs sm:text-sm font-medium outline-none focus:border-slate-800 resize-none"
               />
+            </div>
+
+            {/* GST Checkbox */}
+            <div className="pt-2 flex items-center justify-between border-t border-gray-100">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-black text-gray-800 select-none">
+                <input
+                  type="checkbox"
+                  checked={applyGST}
+                  onChange={e => setApplyGST(e.target.checked)}
+                  className="rounded border-gray-300 text-slate-900 focus:ring-0 w-4 h-4 cursor-pointer"
+                />
+                Apply GST / VAT (18%) to Customer Bill
+              </label>
+
+              <div className="text-sm font-black text-slate-950">
+                Customer Total: <span className="text-emerald-700">LKR {calculations.totalBilled.toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
-          {/* Cost Breakdown */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-indigo-500" /> Cost Breakdown
-            </h2>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between text-slate-600">
-                <span>Services ({calculations.serviceCount}):</span>
-                <span>LKR {calculations.servicesTotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Spare Parts ({calculations.partCount}):</span>
-                <span>LKR {calculations.partsTotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-medium text-slate-800 pt-2 border-t border-slate-100">
-                <span>Subtotal:</span>
-                <span>LKR {calculations.subtotal.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between items-center py-2">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-700">
-                  <input type="checkbox" checked={applyGST} onChange={e => setApplyGST(e.target.checked)} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
-                  Apply GST (18%)
-                </label>
-                {applyGST && <span>LKR {calculations.tax.toFixed(2)}</span>}
-              </div>
-
-              <div className="flex justify-between text-lg font-extrabold text-emerald-700 pt-3 border-t-2 border-slate-200">
-                <span className="text-slate-900">Final Total:</span>
-                <span>LKR {calculations.total.toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`bg-red-600 hover:bg-red-700 text-white px-8 py-3.5 rounded-xl font-bold shadow-md transition-all flex items-center gap-2 w-full justify-center ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                <CheckCircle className="w-5 h-5" />
-                {isSubmitting
-                  ? 'Saving to MongoDB...'
-                  : isViewOrEditMode
-                    ? `Update Job Card (${jobId})`
-                    : 'Create Job Card'}
-              </button>
-            </div>
+          {/* Submission Action */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`bg-[#BC0202] hover:bg-[#830000] text-white px-8 py-3.5 rounded-2xl font-black text-sm shadow-md transition-all flex items-center gap-2 w-full justify-center cursor-pointer border border-[#830000] ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+            >
+              <CheckCircle className="w-5 h-5 stroke-[2.5]" />
+              {isSubmitting
+                ? 'Processing & Saving to MongoDB...'
+                : isViewOrEditMode
+                  ? `Update Job Card (${jobId})`
+                  : 'Create & Finalize Job Card'}
+            </button>
           </div>
 
         </div>

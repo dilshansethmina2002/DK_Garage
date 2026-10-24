@@ -4,21 +4,31 @@ import Vehicle from '../models/Vehicle.js';
 
 // Helper: Calculate financials on the server to prevent client-side tampering
 const calculateSecureFinancials = (lineItems = [], applyGST = false) => {
+  let totalActualCost = 0;
+
   const sanitizedItems = Array.isArray(lineItems)
     ? lineItems
         .filter(item => item && item.name && String(item.name).trim() !== '')
-        .map(item => ({
-          type: item.type === 'Part' ? 'Part' : 'Service',
-          name: String(item.name).trim().slice(0, 200),
-          rate: Math.max(0, Number(item.rate) || 0)
-        }))
+        .map(item => {
+          const costPrice = Math.max(0, Number(item.costPrice) || 0);
+          const rate = Math.max(0, Number(item.rate) || 0);
+          totalActualCost += costPrice;
+
+          return {
+            type: item.type === 'Part' ? 'Part' : 'Service',
+            name: String(item.name).trim().slice(0, 200),
+            costPrice,
+            rate
+          };
+        })
     : [];
 
   const subtotal = sanitizedItems.reduce((sum, item) => sum + item.rate, 0);
   const tax = applyGST ? Number((subtotal * 0.18).toFixed(2)) : 0;
   const totalCost = Number((subtotal + tax).toFixed(2));
+  const grossProfit = Number((subtotal - totalActualCost).toFixed(2));
 
-  return { sanitizedItems, subtotal, tax, totalCost };
+  return { sanitizedItems, totalActualCost, subtotal, tax, totalCost, grossProfit };
 };
 
 // Helper: Format job card documents consistently for frontend consumption
@@ -36,6 +46,8 @@ const formatJobResponse = (job) => {
       : 'Unknown Vehicle - NO-PLATE',
     customer: job.customer?.name || 'Unknown Customer',
     customerPhone: job.customer?.phone || 'N/A',
+    customerRequests: job.customerRequests || job.notes || '',
+    notes: job.notes || job.customerRequests || '',
     mechanics: mechanicsList,
     mechanic: mechanicsList.join(', ') || 'Unassigned',
     priority: job.priority || 'Medium',
@@ -110,6 +122,7 @@ export const createJob = async (req, res) => {
       make,
       model,
       licensePlate,
+      customerRequests,
       mechanics,
       mechanic,
       priority,
@@ -179,18 +192,23 @@ export const createJob = async (req, res) => {
     // 4. Calculate financials securely
     const { sanitizedItems, subtotal, tax, totalCost } = calculateSecureFinancials(lineItems, Boolean(applyGST));
 
+    // Consolidate customer complaint text
+    const cleanCustomerRequests = customerRequests ? String(customerRequests).trim() : '';
+    const cleanNotes = notes ? String(notes).trim() : cleanCustomerRequests;
+
     // 5. Create Job Card document
     const newJob = await JobCard.create({
       jobId: newJobId,
       customer: customer._id,
       vehicle: vehicle._id,
+      customerRequests: cleanCustomerRequests,
+      notes: cleanNotes,
       mechanics: assignedMechanics,
       mechanic: assignedMechanics.join(', '),
       priority: priority || 'Medium',
       status: status || 'Pending Inspection',
       jobDate: jobDate || Date.now(),
       deliveryDate: deliveryDate || null,
-      notes: notes ? String(notes).trim() : '',
       lineItems: sanitizedItems,
       applyGST: Boolean(applyGST),
       subtotal,
@@ -217,6 +235,7 @@ export const updateJob = async (req, res) => {
       make,
       model,
       licensePlate,
+      customerRequests,
       mechanics,
       mechanic,
       priority,
@@ -263,13 +282,14 @@ export const updateJob = async (req, res) => {
     const updatedJob = await JobCard.findOneAndUpdate(
       { jobId },
       {
+        customerRequests: customerRequests !== undefined ? String(customerRequests).trim() : existingJob.customerRequests,
+        notes: notes !== undefined ? String(notes).trim() : existingJob.notes,
         mechanics: assignedMechanics,
         mechanic: assignedMechanics.join(', '),
         priority: priority || existingJob.priority,
         status: status || existingJob.status,
         jobDate: jobDate || existingJob.jobDate,
         deliveryDate: deliveryDate || existingJob.deliveryDate,
-        notes: notes !== undefined ? String(notes).trim() : existingJob.notes,
         lineItems: sanitizedItems,
         applyGST: Boolean(applyGST),
         subtotal,
