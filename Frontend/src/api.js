@@ -1,12 +1,12 @@
 import axios from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL;
+export const API_BASE_URL = 
+  import.meta.env.VITE_API_URL || 'https://dk-garage.onrender.com';
 
 const API = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Automatically attaches the token from localStorage if present
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
