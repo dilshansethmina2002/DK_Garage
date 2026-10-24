@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { Lock, User, AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import API from './api';
 import dkLogo from './assets/dk-logo.webp';
 
 const Login = () => {
@@ -17,7 +17,8 @@ const Login = () => {
     e.preventDefault();
     setError(null);
 
-    const cleanUsername = username.trim();
+    // Trim and lower-case to prevent mobile keyboard auto-capitalization bugs
+    const cleanUsername = username.trim().toLowerCase();
     if (!cleanUsername || !password) {
       setError('Please enter both username and password.');
       return;
@@ -26,7 +27,8 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
+      // Uses the centralized API client connected to Render
+      const response = await API.post('/api/auth/login', {
         username: cleanUsername,
         password
       });
@@ -44,9 +46,8 @@ const Login = () => {
         navigate('/');
       }
     } catch (err) {
-      // Generic message prevents username enumeration attacks
       setError(
-        err.response?.data?.message || 'Invalid credentials or unauthorized access.'
+        err.response?.data?.message || err.message || 'Invalid credentials or unauthorized access.'
       );
     } finally {
       setIsLoading(false);
@@ -91,6 +92,9 @@ const Login = () => {
                   type="text"
                   required
                   maxLength={50}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Enter your staff username"
