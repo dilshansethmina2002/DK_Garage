@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import {
     Car, Search, Filter, Plus, Edit, Trash2, User, Phone, Gauge, Fuel, Calendar, AlertCircle, Wrench, ShieldAlert, ClipboardList
 } from 'lucide-react';
+import API from '../api';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -44,7 +44,7 @@ const Vehicles = () => {
     const fetchVehicles = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('http://localhost:5000/api/vehicles');
+            const response = await API.get('/api/vehicles');
             setVehicles(response.data);
         } catch (err) {
             if (err.response?.status === 401) {
@@ -66,11 +66,11 @@ const Vehicles = () => {
     const filteredVehicles = vehicles.filter(v => {
         const query = searchQuery.toLowerCase();
         const matchesSearch =
-            v.licensePlate.toLowerCase().includes(query) ||
-            v.make.toLowerCase().includes(query) ||
-            v.model.toLowerCase().includes(query) ||
-            v.ownerName.toLowerCase().includes(query) ||
-            v.ownerPhone.toLowerCase().includes(query);
+            (v.licensePlate || '').toLowerCase().includes(query) ||
+            (v.make || '').toLowerCase().includes(query) ||
+            (v.model || '').toLowerCase().includes(query) ||
+            (v.ownerName || '').toLowerCase().includes(query) ||
+            (v.ownerPhone || '').toLowerCase().includes(query);
         const matchesFuel = fuelFilter === 'All' || v.fuelType === fuelFilter;
         return matchesSearch && matchesFuel;
     });
@@ -110,9 +110,9 @@ const Vehicles = () => {
         setError(null);
         try {
             if (editingId) {
-                await axios.put(`http://localhost:5000/api/vehicles/${editingId}`, formData);
+                await API.put(`/api/vehicles/${editingId}`, formData);
             } else {
-                await axios.post('http://localhost:5000/api/vehicles', formData);
+                await API.post('/api/vehicles', formData);
             }
             setIsModalOpen(false);
             fetchVehicles();
@@ -124,7 +124,7 @@ const Vehicles = () => {
     const handleDelete = async (id) => {
         setError(null);
         try {
-            await axios.delete(`http://localhost:5000/api/vehicles/${id}`);
+            await API.delete(`/api/vehicles/${id}`);
             setVehicles(vehicles.filter(v => v._id !== id));
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to delete vehicle.');
@@ -284,7 +284,7 @@ const Vehicles = () => {
                                 <div className="flex items-center justify-between text-slate-600">
                                     <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-400" /> Year / Jobs:</span>
                                     <span className="font-medium text-slate-700">
-                                        {v.year || 'N/A'} • <strong className="text-indigo-600">{v.totalJobs} Job(s)</strong>
+                                        {v.year || 'N/A'} • <strong className="text-indigo-600">{v.totalJobs || 0} Job(s)</strong>
                                     </span>
                                 </div>
                             </div>
@@ -315,7 +315,7 @@ const Vehicles = () => {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>
+                                        <AlertDialogTitle className="flex items-center gap-2">
                                             <ShieldAlert className="w-5 h-5 text-red-600" />
                                             Delete Vehicle {v.licensePlate}?
                                         </AlertDialogTitle>

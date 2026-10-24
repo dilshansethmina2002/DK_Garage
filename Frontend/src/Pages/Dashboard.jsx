@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
-  Car, Wrench, CircleDollarSign, Plus, Activity, AlertCircle,
+  Car, Wrench, CircleDollarSign, Plus, AlertCircle,
   Package, Users, ClipboardList, X, ChevronRight, Clock, ArrowUpRight,
   UserCheck, Check, ChevronDown, Search, FileText, Sparkles
 } from 'lucide-react';
+import API from '../api';
 
 const weeklyRevenue = [
   { name: 'Mon', revenue: 45000 },
@@ -54,15 +54,6 @@ const Dashboard = () => {
     customerRequests: ''
   });
 
-  const getAuthConfig = () => {
-    const token = localStorage.getItem('token');
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    };
-  };
-
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
@@ -97,7 +88,7 @@ const Dashboard = () => {
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/jobs/active', getAuthConfig());
+      const response = await API.get('/api/jobs/active');
       setActiveJobs(response.data);
     } catch (err) {
       if (err.response?.status === 401) {
@@ -114,11 +105,11 @@ const Dashboard = () => {
 
   const fetchRegisteredMechanics = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/users/mechanics', getAuthConfig());
+      const res = await API.get('/api/users/mechanics');
       if (Array.isArray(res.data) && res.data.length > 0) {
         setRegisteredMechanics(res.data);
       } else {
-        const fallbackRes = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+        const fallbackRes = await API.get('/api/users');
         const filtered = (fallbackRes.data || []).filter(u =>
           String(u.role).toLowerCase() === 'mechanic'
         );
@@ -126,7 +117,7 @@ const Dashboard = () => {
       }
     } catch {
       try {
-        const fallbackRes = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+        const fallbackRes = await API.get('/api/users');
         const filtered = (fallbackRes.data || []).filter(u =>
           String(u.role).toLowerCase() === 'mechanic'
         );
@@ -172,7 +163,7 @@ const Dashboard = () => {
     };
 
     try {
-      await axios.post('http://localhost:5000/api/jobs', payload, getAuthConfig());
+      await API.post('/api/jobs', payload);
       setIsModalOpen(false);
       setFormData({
         customerName: '',
@@ -192,7 +183,7 @@ const Dashboard = () => {
 
   const handleStatusChange = async (jobId, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/jobs/${jobId}/status`, { status: newStatus }, getAuthConfig());
+      await API.put(`/api/jobs/${jobId}/status`, { status: newStatus });
       setActiveJobs(activeJobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j));
     } catch {
       alert("Failed to update status.");
@@ -775,8 +766,8 @@ const Dashboard = () => {
                             key={m._id}
                             onClick={() => toggleMechanicSelection(m.name)}
                             className={`p-2.5 flex items-center justify-between text-xs font-bold cursor-pointer transition-colors ${isSelected
-                              ? 'bg-slate-100 text-slate-900'
-                              : 'hover:bg-gray-50 text-gray-700'
+                                ? 'bg-slate-100 text-slate-900'
+                                : 'hover:bg-gray-50 text-gray-700'
                               }`}
                           >
                             <div>

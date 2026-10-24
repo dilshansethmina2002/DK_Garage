@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import axios from 'axios';
 import {
-  User, Wrench, Plus, Trash2, Camera, FileText, CheckCircle,
+  User, Wrench, Plus, Trash2, Camera, CheckCircle,
   AlertCircle, ArrowLeft, EyeOff, TrendingUp, Sparkles, Check,
-  X, ChevronDown, Search, ShieldCheck
+  X, ChevronDown, Search
 } from 'lucide-react';
+import API from '../api';
 
 const commonIssues = [
   'Regular Service & Oil Change',
@@ -53,15 +53,6 @@ const JobCardWorkspace = () => {
     { id: 1, type: 'Service', name: 'Labour Service', costPrice: 0, rate: 0 }
   ]);
 
-  const getAuthConfig = () => {
-    const token = localStorage.getItem('token');
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    };
-  };
-
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -77,17 +68,17 @@ const JobCardWorkspace = () => {
   useEffect(() => {
     const fetchMechanics = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/users/mechanics', getAuthConfig());
+        const res = await API.get('/api/users/mechanics');
         if (Array.isArray(res.data) && res.data.length > 0) {
           setRegisteredMechanics(res.data);
         } else {
-          const fallbackRes = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+          const fallbackRes = await API.get('/api/users');
           const filtered = (fallbackRes.data || []).filter(u => String(u.role).toLowerCase() === 'mechanic');
           setRegisteredMechanics(filtered);
         }
       } catch {
         try {
-          const fallbackRes = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+          const fallbackRes = await API.get('/api/users');
           const filtered = (fallbackRes.data || []).filter(u => String(u.role).toLowerCase() === 'mechanic');
           setRegisteredMechanics(filtered);
         } catch (fallbackErr) {
@@ -106,7 +97,7 @@ const JobCardWorkspace = () => {
     const fetchExistingJob = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:5000/api/jobs/${jobId}`, getAuthConfig());
+        const response = await API.get(`/api/jobs/${jobId}`);
         const job = response.data;
 
         setCustomerName(job.customer?.name || '');
@@ -182,13 +173,13 @@ const JobCardWorkspace = () => {
     return {
       totalActualCost: totalActualCost || 0,
       servicesBilled: servicesBilled || 0,
-      servicesTotal: servicesBilled || 0,   // Alias for compatibility
+      servicesTotal: servicesBilled || 0,
       partsBilled: partsBilled || 0,
-      partsTotal: partsBilled || 0,         // Alias to fix line 403
+      partsTotal: partsBilled || 0,
       subtotal: subtotal || 0,
       tax: tax || 0,
       totalBilled: totalBilled || 0,
-      total: totalBilled || 0,              // Alias for compatibility
+      total: totalBilled || 0,
       grossProfit: grossProfit || 0,
       marginPercent,
       serviceCount: items.filter(i => i.type === 'Service').length,
@@ -261,9 +252,9 @@ const JobCardWorkspace = () => {
 
     try {
       if (isViewOrEditMode) {
-        await axios.put(`http://localhost:5000/api/jobs/${jobId}`, payload, getAuthConfig());
+        await API.put(`/api/jobs/${jobId}`, payload);
       } else {
-        await axios.post('http://localhost:5000/api/jobs', payload, getAuthConfig());
+        await API.post('/api/jobs', payload);
       }
       navigate('/job-cards');
     } catch (err) {

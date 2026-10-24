@@ -1,13 +1,13 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  ClipboardList, 
-  Package, 
-  Car, 
-  Users, 
-  BarChart3, 
-  CreditCard, 
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Package,
+  Car,
+  Users,
+  BarChart3,
+  CreditCard,
   UserCog,
   LogOut,
   ShieldCheck,
@@ -25,6 +25,8 @@ const Sidebar = ({ isOpen, onClose }) => {
     currentUser = {};
   }
 
+  const isAdmin = currentUser?.role === 'Admin';
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -41,14 +43,15 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Customers', path: '/customers', icon: <Users className="w-5 h-5" /> },
     { name: 'Reports', path: '/reports', icon: <BarChart3 className="w-5 h-5" /> },
     { name: 'Payments', path: '/finance', icon: <CreditCard className="w-5 h-5" /> },
-    { name: 'User Management', path: '/users', icon: <UserCog className="w-5 h-5" /> },
+    // Only visible to workshop Administrators
+    ...(isAdmin ? [{ name: 'User Management', path: '/users', icon: <UserCog className="w-5 h-5" /> }] : [])
   ];
 
   return (
     <>
       {/* Mobile Backdrop Overlay */}
       {isOpen && (
-        <div 
+        <div
           onClick={onClose}
           className="fixed inset-0 bg-[#000000]/80 backdrop-blur-xs z-40 lg:hidden transition-opacity"
         />
@@ -63,10 +66,10 @@ const Sidebar = ({ isOpen, onClose }) => {
         {/* Seamless Blended Logo Header */}
         <div className="p-4 border-b border-[#830000]/40 flex items-center justify-between">
           <div className="flex-1 flex items-center justify-center mr-2 py-1">
-            <img 
-              src={dkLogo} 
-              alt="DK Automobile" 
-              className="h-12 w-auto object-contain mix-blend-screen brightness-110 contrast-125" 
+            <img
+              src={dkLogo}
+              alt="DK Automobile"
+              className="h-12 w-auto object-contain mix-blend-screen brightness-110 contrast-125"
               draggable="false"
             />
           </div>
@@ -91,10 +94,9 @@ const Sidebar = ({ isOpen, onClose }) => {
                 if (onClose) onClose();
               }}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  isActive 
-                    ? 'bg-[#BC0202] text-white shadow-lg shadow-[#FF0000]/20 border border-[#FF0000]/40' 
-                    : 'text-neutral-400 hover:bg-[#830000]/25 hover:text-white border border-transparent hover:border-[#830000]/50'
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive
+                  ? 'bg-[#BC0202] text-white shadow-lg shadow-[#FF0000]/20 border border-[#FF0000]/40'
+                  : 'text-neutral-400 hover:bg-[#830000]/25 hover:text-white border border-transparent hover:border-[#830000]/50'
                 }`
               }
             >

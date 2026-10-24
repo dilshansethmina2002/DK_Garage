@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
-  ArrowLeft, Printer, User, Car, Wrench, Clock, FileText, Save, CheckCircle
+  ArrowLeft, Printer, User, Car, Wrench, Clock, FileText, Save
 } from 'lucide-react';
+import API from '../api';
+import { generateJobReceipt } from '../utils/generateJobReceipt';
 
 const JobDetails = () => {
   const { jobId } = useParams();
@@ -13,7 +14,7 @@ const JobDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // State for the mechanic's repair log
+  // Mechanic's repair log state
   const [notes, setNotes] = useState('');
   const [laborHours, setLaborHours] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -21,15 +22,11 @@ const JobDetails = () => {
   useEffect(() => {
     const fetchJobDetails = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/jobs/${jobId}`);
+        const response = await API.get(`/api/jobs/${jobId}`);
         setJob(response.data);
-
-        // If your backend eventually sends existing notes/hours, you'd populate them here:
         setNotes(response.data.notes || '');
         setLaborHours(response.data.laborHours || '');
       } catch (err) {
-        console.error("Error fetching job details:", err);
-        // Automatically kick out unauthenticated users
         if (err.response?.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -48,15 +45,12 @@ const JobDetails = () => {
   const handleSaveLog = async () => {
     setIsSaving(true);
     try {
-      await axios.put(`http://localhost:5000/api/jobs/${jobId}/log`, {
-        notes: notes,
-        laborHours: laborHours
+      await API.put(`/api/jobs/${jobId}/log`, {
+        notes,
+        laborHours
       });
-
       alert('Repair log saved successfully!');
     } catch (err) {
-      console.error("Error saving log:", err);
-      // Automatically kick out unauthenticated users
       if (err.response?.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -68,6 +62,13 @@ const JobDetails = () => {
       setIsSaving(false);
     }
   };
+
+  const handlePrintReceipt = () => {
+    if (job) {
+      generateJobReceipt(job);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -89,18 +90,22 @@ const JobDetails = () => {
 
   if (!job) return null;
 
+  const mechanicsList = Array.isArray(job.mechanics) && job.mechanics.length > 0
+    ? job.mechanics.join(', ')
+    : (job.mechanic || 'Unassigned');
+
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-8 font-sans text-slate-900">
 
       {/* Header Section */}
       <div className="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link to="/" className="p-2 bg-white rounded-xl shadow-sm border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-all">
+          <Link to="/job-cards" className="p-2 bg-white rounded-xl shadow-sm border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-all">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
             <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-3">
-              Job Card: {job.jobId}
+              Job Card: {job.jobId || job.id}
               <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider
                 ${job.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
                   job.status === 'Awaiting Parts' ? 'bg-amber-100 text-amber-700' :
@@ -114,8 +119,11 @@ const JobDetails = () => {
           </div>
         </div>
 
-        <button className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2">
-          <Printer className="w-4 h-4" /> Print Order
+        <button 
+          onClick={handlePrintReceipt}
+          className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+        >
+          <Printer className="w-4 h-4" /> Print Receipt
         </button>
       </div>
 
@@ -132,11 +140,11 @@ const JobDetails = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Name</p>
-                <p className="font-medium text-slate-800">{job.customer.name}</p>
+                <p className="font-medium text-slate-800">{job.customer?.name || job.customer || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Phone Number</p>
-                <p className="font-medium text-slate-800">{job.customer.phone}</p>
+                <p className="font-medium text-slate-800">{job.customer?.phone || job.customerPhone || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -149,16 +157,18 @@ const JobDetails = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Make & Model</p>
-                <p className="font-medium text-slate-800">{job.vehicle.make} {job.vehicle.model}</p>
+                <p className="font-medium text-slate-800">
+                  {job.vehicle?.make ? `${job.vehicle.make} ${job.vehicle.model || ''}` : (job.vehicle || 'N/A')}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">License Plate</p>
-                <p className="font-medium text-slate-800">{job.vehicle.licensePlate}</p>
+                <p className="font-medium text-slate-800">{job.vehicle?.licensePlate || 'NO-PLATE'}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Assigned Mechanic</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Assigned Mechanic(s)</p>
                 <p className="font-medium inline-flex items-center gap-1 text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md mt-1">
-                  <Wrench className="w-3 h-3 text-slate-500" /> {job.mechanic}
+                  <Wrench className="w-3 h-3 text-slate-500" /> {mechanicsList}
                 </p>
               </div>
             </div>
@@ -199,7 +209,7 @@ const JobDetails = () => {
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full h-48 p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none transition-all"
                   placeholder="Describe the issues found, repairs made, and any parts replaced..."
-                ></textarea>
+                />
               </div>
             </div>
 
@@ -208,7 +218,7 @@ const JobDetails = () => {
               <button
                 onClick={handleSaveLog}
                 disabled={isSaving}
-                className={`bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2 ${isSaving ? 'opacity-75 cursor-not-allowed' : ''}`}
+                className={`bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2 cursor-pointer ${isSaving ? 'opacity-75 cursor-not-allowed' : ''}`}
               >
                 {isSaving ? (
                   <>Saving Data...</>

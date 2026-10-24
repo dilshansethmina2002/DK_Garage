@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
     UserCog, Shield, Wrench, Search, Plus, Edit, Trash2, Phone,
     UserCheck, AlertCircle, ShieldAlert, X
 } from 'lucide-react';
+import API from '../api';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -40,21 +40,11 @@ const UserManagement = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = currentUser?.role === 'Admin';
 
-    // Helper for Authorization Headers
-    const getAuthConfig = () => {
-        const token = localStorage.getItem('token');
-        return {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        };
-    };
-
     const fetchUsers = async () => {
         try {
             setLoading(true);
             setError(null);
-            const res = await axios.get('http://localhost:5000/api/users', getAuthConfig());
+            const res = await API.get('/api/users');
             setUsers(res.data);
         } catch (err) {
             if (err.response?.status === 401) {
@@ -129,9 +119,9 @@ const UserManagement = () => {
 
         try {
             if (editingId) {
-                await axios.put(`http://localhost:5000/api/users/${editingId}`, payload, getAuthConfig());
+                await API.put(`/api/users/${editingId}`, payload);
             } else {
-                await axios.post('http://localhost:5000/api/users', payload, getAuthConfig());
+                await API.post('/api/users', payload);
             }
             setIsModalOpen(false);
             fetchUsers();
@@ -144,7 +134,7 @@ const UserManagement = () => {
     const handleDelete = async (id) => {
         setError(null);
         try {
-            await axios.delete(`http://localhost:5000/api/users/${id}`, getAuthConfig());
+            await API.delete(`/api/users/${id}`);
             setUsers(users.filter(u => u._id !== id));
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to delete user account.');
@@ -289,11 +279,9 @@ const UserManagement = () => {
                     return (
                         <div
                             key={u._id}
-                            className={`bg-white rounded-2xl border-2 ${u.role === 'Admin' ? 'border-red-300' : 'border-gray-300'
-                                } p-5 shadow-sm flex flex-col justify-between relative overflow-hidden`}
+                            className={`bg-white rounded-2xl border-2 ${u.role === 'Admin' ? 'border-red-300' : 'border-gray-300'} p-5 shadow-sm flex flex-col justify-between relative overflow-hidden`}
                         >
-                            <div className={`absolute top-0 left-0 right-0 h-1.5 ${u.role === 'Admin' ? 'bg-[#BC0202]' : 'bg-slate-700'
-                                }`} />
+                            <div className={`absolute top-0 left-0 right-0 h-1.5 ${u.role === 'Admin' ? 'bg-[#BC0202]' : 'bg-slate-700'}`} />
 
                             <div>
                                 <div className="flex justify-between items-start mb-3">
@@ -310,8 +298,8 @@ const UserManagement = () => {
                                     </div>
 
                                     <span className={`px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider flex items-center gap-1 ${u.role === 'Admin'
-                                            ? 'bg-red-50 text-[#BC0202] border border-red-200'
-                                            : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                        ? 'bg-red-50 text-[#BC0202] border border-red-200'
+                                        : 'bg-blue-50 text-blue-700 border border-blue-200'
                                         }`}>
                                         {u.role === 'Admin' ? <Shield className="w-3.5 h-3.5" /> : <Wrench className="w-3.5 h-3.5" />}
                                         {u.role}
@@ -352,8 +340,8 @@ const UserManagement = () => {
                                             disabled={isCurrentLoggedIn}
                                             title={isCurrentLoggedIn ? 'You cannot delete your own account' : 'Delete Account'}
                                             className={`flex items-center justify-center gap-1.5 py-2 px-3 border rounded-lg text-xs font-bold transition-all ${isCurrentLoggedIn
-                                                    ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-                                                    : 'bg-white border-red-200 text-red-600 hover:bg-red-50 cursor-pointer'
+                                                ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
+                                                : 'bg-white border-red-200 text-red-600 hover:bg-red-50 cursor-pointer'
                                                 }`}
                                         >
                                             <Trash2 className="w-3.5 h-3.5" /> Delete
@@ -361,7 +349,7 @@ const UserManagement = () => {
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle>
+                                            <AlertDialogTitle className="flex items-center gap-2">
                                                 <ShieldAlert className="w-5 h-5 text-red-600" />
                                                 Delete {u.name}'s Account?
                                             </AlertDialogTitle>
@@ -430,8 +418,8 @@ const UserManagement = () => {
                                     value={formData.username}
                                     onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase() })}
                                     className={`w-full border-2 rounded-xl p-2.5 outline-none ${editingId
-                                            ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
-                                            : 'bg-white border-gray-300 text-gray-900 focus:border-slate-800'
+                                        ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
+                                        : 'bg-white border-gray-300 text-gray-900 focus:border-slate-800'
                                         }`}
                                 />
                             </div>

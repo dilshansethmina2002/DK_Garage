@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
     Search, Filter, Plus, Eye, Trash2, Download, AlertCircle, Wrench, ShieldAlert
 } from 'lucide-react';
+import API from '../api';
 import { generateJobReceipt } from '../utils/generateJobReceipt';
 
 import {
@@ -33,7 +33,7 @@ const JobCardsList = () => {
     const fetchJobs = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('http://localhost:5000/api/jobs');
+            const response = await API.get('/api/jobs');
             setJobs(response.data);
         } catch (err) {
             if (err.response?.status === 401) {
@@ -54,18 +54,18 @@ const JobCardsList = () => {
 
     const filteredJobs = jobs.filter(job => {
         const matchesSearch =
-            job.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            job.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            job.customer.toLowerCase().includes(searchQuery.toLowerCase());
+            (job.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (job.vehicle || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (job.customer || '').toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'All' || job.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
 
     const handleStatusChange = async (jobId, newStatus) => {
         try {
-            await axios.put(`http://localhost:5000/api/jobs/${jobId}/status`, { status: newStatus });
+            await API.put(`/api/jobs/${jobId}/status`, { status: newStatus });
             setJobs(jobs.map(job => (job.id === jobId ? { ...job, status: newStatus } : job)));
-        } catch (err) {
+        } catch {
             setError('Failed to update job status.');
         }
     };
@@ -73,7 +73,7 @@ const JobCardsList = () => {
     // Triggered only when the user clicks "Permanently Delete" inside the AlertDialog
     const handleDelete = async (jobId) => {
         try {
-            await axios.delete(`http://localhost:5000/api/jobs/${jobId}`);
+            await API.delete(`/api/jobs/${jobId}`);
             setJobs(jobs.filter(j => j.id !== jobId));
         } catch (err) {
             setError(err.response?.data?.message || 'Unauthorized: Only Admins can delete Job Cards.');
@@ -82,7 +82,7 @@ const JobCardsList = () => {
 
     const handleDownload = async (jobId) => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/jobs/${jobId}`);
+            const response = await API.get(`/api/jobs/${jobId}`);
             generateJobReceipt(response.data);
         } catch (err) {
             if (err.response?.status === 401) {
@@ -185,27 +185,27 @@ const JobCardsList = () => {
                                     SL
                                 </span>
                                 <span className="px-3 py-1 font-extrabold text-sm tracking-wider text-slate-900">
-                                    {job.vehicle.split(' - ')[1] || 'NO-PLATE'}
+                                    {job.vehicle?.split(' - ')[1] || 'NO-PLATE'}
                                 </span>
                             </div>
 
-                            <h3 className="text-base font-bold text-blue-700">{job.vehicle.split(' - ')[0]}</h3>
+                            <h3 className="text-base font-bold text-blue-700">{job.vehicle?.split(' - ')[0] || job.vehicle}</h3>
                             <p className="text-slate-400 text-xs mt-0.5">
                                 {job.id} • {job.createdAt ? new Date(job.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}
                             </p>
 
                             <div className="flex gap-2 mt-3">
                                 <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${job.priority === 'High' || job.priority === 'Urgent'
-                                        ? 'bg-red-100 text-red-700'
-                                        : 'bg-amber-100 text-amber-800'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-amber-100 text-amber-800'
                                     }`}>
                                     {job.priority || 'Medium'}
                                 </span>
                                 <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${job.status === 'Completed'
-                                        ? 'bg-red-700 text-white'
-                                        : job.status === 'In Progress'
-                                            ? 'bg-blue-100 text-blue-700'
-                                            : 'bg-slate-200 text-slate-700'
+                                    ? 'bg-red-700 text-white'
+                                    : job.status === 'In Progress'
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-slate-200 text-slate-700'
                                     }`}>
                                     {job.status}
                                 </span>
@@ -217,7 +217,9 @@ const JobCardsList = () => {
                             <div>
                                 <p className="font-bold text-slate-800 italic">{job.customer}</p>
                                 <p className="text-slate-500 text-xs mt-0.5">{job.customerPhone}</p>
-                                <p className="text-slate-400 text-xs mt-1">Mechanic: {job.mechanic}</p>
+                                <p className="text-slate-400 text-xs mt-1">
+                                    Mechanic: {Array.isArray(job.mechanics) && job.mechanics.length > 0 ? job.mechanics.join(', ') : (job.mechanic || 'Unassigned')}
+                                </p>
                             </div>
 
                             <div className="flex justify-between items-center pt-2 border-t border-slate-100">
@@ -252,7 +254,6 @@ const JobCardsList = () => {
                                 <Eye className="w-4 h-4" /> View
                             </Link>
 
-                            {/* Shadcn AlertDialog Trigger & Modal */}
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <button
@@ -260,8 +261,8 @@ const JobCardsList = () => {
                                         disabled={!isAdmin}
                                         title={!isAdmin ? 'Admin role required to delete job cards' : 'Delete Job Card'}
                                         className={`flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-slate-200 rounded-lg text-xs font-semibold transition-all ${isAdmin
-                                                ? 'text-red-600 hover:bg-red-50 hover:border-red-200 cursor-pointer'
-                                                : 'text-slate-300 cursor-not-allowed'
+                                            ? 'text-red-600 hover:bg-red-50 hover:border-red-200 cursor-pointer'
+                                            : 'text-slate-300 cursor-not-allowed'
                                             }`}
                                     >
                                         <Trash2 className="w-4 h-4" /> Delete
@@ -269,7 +270,7 @@ const JobCardsList = () => {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>
+                                        <AlertDialogTitle className="flex items-center gap-2">
                                             <ShieldAlert className="w-5 h-5 text-red-600" />
                                             Delete Job Card {job.id}?
                                         </AlertDialogTitle>
