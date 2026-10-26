@@ -398,8 +398,8 @@ const ValuationWorkspace = () => {
                                 type="button"
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`px-5 py-3 text-xs font-black uppercase tracking-wider rounded-t-xl transition-all cursor-pointer border-b-4 shrink-0 ${activeTab === tab.id
-                                        ? 'border-[#BC0202] text-[#BC0202] bg-red-50/50'
-                                        : 'border-transparent text-slate-600 hover:text-black hover:bg-slate-50'
+                                    ? 'border-[#BC0202] text-[#BC0202] bg-red-50/50'
+                                    : 'border-transparent text-slate-600 hover:text-black hover:bg-slate-50'
                                     }`}
                             >
                                 {tab.label}
