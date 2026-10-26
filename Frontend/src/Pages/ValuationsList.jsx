@@ -5,7 +5,7 @@ import {
     RefreshCw, AlertCircle, Car
 } from 'lucide-react';
 import API from '../api';
-import ValuationPrintView from '../components/ValuationPrintView'; 
+import ValuationPrintView from '../components/ValuationPrintView.jsx';
 
 const ValuationsList = () => {
     const [valuations, setValuations] = useState([]);
