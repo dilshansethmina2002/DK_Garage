@@ -5,7 +5,7 @@ import {
     FileText, DollarSign, RefreshCw, Check, Printer
 } from 'lucide-react';
 import API from '../api';
-import ValuationPrintView from '../components/ValuationPrintView';
+import ValuationPrintView from '../components/ValuationPrintView.jsx';
 
 const TABS = [
     { id: 'identification', label: '1. Vehicle Identification' },
