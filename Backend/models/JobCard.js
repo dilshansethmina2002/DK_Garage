@@ -1,6 +1,10 @@
 import mongoose from 'mongoose';
 
 const lineItemSchema = new mongoose.Schema({
+  date: {
+    type: String, // Storing as YYYY-MM-DD makes direct string comparison seamless
+    default: () => new Date().toISOString().split('T')[0]
+  },
   type: { 
     type: String, 
     enum: ['Service', 'Part'], 
@@ -25,6 +29,16 @@ const lineItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const jobCardSchema = new mongoose.Schema({
+  // Add inside jobCardSchema:
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
   jobId: { 
     type: String, 
     required: true, 

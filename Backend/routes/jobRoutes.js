@@ -6,7 +6,8 @@ import {
   createJob,
   updateJob,
   updateJobStatus,
-  deleteJob
+  deleteJob,
+  getVehicleServiceHistory
 } from '../controllers/jobController.js';
 import { verifyToken, authorizeRoles } from '../middleware/authMiddleware.js';
 
@@ -31,5 +32,7 @@ router.route('/:jobId')
   .get(getJobById)
   .put(updateJob)
   .delete(authorizeRoles('Admin'), deleteJob);
+
+router.get('/vehicle-history/:licensePlate', getVehicleServiceHistory);
 
 export default router;

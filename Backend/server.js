@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -6,6 +7,7 @@ import jobRoutes from './routes/jobRoutes.js'; // Note the .js extension
 import authRoutes from './routes/authRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js'; // Note the .js extension
 import userRoutes from './routes/userRoutes.js'; // Note the .js extension
+import valuationRoutes from './routes/valuationRoutes.js';
 
 dotenv.config();
 
@@ -18,6 +20,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/valuations', valuationRoutes);
 
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB Connected successfully'))

@@ -43,7 +43,7 @@ const Login = () => {
       if (user?.role === 'Mechanic') {
         navigate('/job-cards');
       } else {
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (err) {
       setError(

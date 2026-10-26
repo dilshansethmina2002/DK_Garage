@@ -5,6 +5,7 @@ import Vehicle from '../models/Vehicle.js';
 // Helper: Calculate financials on the server to prevent client-side tampering
 const calculateSecureFinancials = (lineItems = [], applyGST = false) => {
   let totalActualCost = 0;
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const sanitizedItems = Array.isArray(lineItems)
     ? lineItems
@@ -15,6 +16,7 @@ const calculateSecureFinancials = (lineItems = [], applyGST = false) => {
           totalActualCost += costPrice;
 
           return {
+            date: item.date ? String(item.date).trim() : todayStr,
             type: item.type === 'Part' ? 'Part' : 'Service',
             name: String(item.name).trim().slice(0, 200),
             costPrice,
@@ -28,7 +30,14 @@ const calculateSecureFinancials = (lineItems = [], applyGST = false) => {
   const totalCost = Number((subtotal + tax).toFixed(2));
   const grossProfit = Number((subtotal - totalActualCost).toFixed(2));
 
-  return { sanitizedItems, totalActualCost, subtotal, tax, totalCost, grossProfit };
+  return { 
+    sanitizedItems, 
+    totalActualCost: Number(totalActualCost.toFixed(2)), 
+    subtotal: Number(subtotal.toFixed(2)), 
+    tax, 
+    totalCost, 
+    grossProfit 
+  };
 };
 
 // Helper: Format job card documents consistently for frontend consumption
@@ -41,8 +50,9 @@ const formatJobResponse = (job) => {
 
   return {
     id: job.jobId,
+    jobId: job.jobId,
     vehicle: job.vehicle
-      ? `${job.vehicle.make} ${job.vehicle.model} - ${job.vehicle.licensePlate}`
+      ? `${job.vehicle.make || ''} ${job.vehicle.model || ''} - ${job.vehicle.licensePlate || 'NO-PLATE'}`.trim()
       : 'Unknown Vehicle - NO-PLATE',
     customer: job.customer?.name || 'Unknown Customer',
     customerPhone: job.customer?.phone || 'N/A',
@@ -52,7 +62,15 @@ const formatJobResponse = (job) => {
     mechanic: mechanicsList.join(', ') || 'Unassigned',
     priority: job.priority || 'Medium',
     status: job.status,
+    jobDate: job.jobDate,
+    deliveryDate: job.deliveryDate,
+    lineItems: job.lineItems || [],
+    applyGST: Boolean(job.applyGST),
+    totalActualCost: job.totalActualCost || 0,
+    subtotal: job.subtotal || 0,
+    tax: job.tax || 0,
     totalCost: job.totalCost || 0,
+    grossProfit: job.grossProfit !== undefined ? job.grossProfit : (job.totalCost || 0) - (job.totalActualCost || 0),
     createdAt: job.createdAt
   };
 };
@@ -62,31 +80,29 @@ const formatJobResponse = (job) => {
 // @access  Private
 export const getAllJobs = async (req, res) => {
   try {
-    const jobs = await JobCard.find()
+    const jobs = await JobCard.find({ isDeleted: { $ne: true } })
       .populate('customer', 'name phone')
       .populate('vehicle', 'make model licensePlate')
       .sort({ createdAt: -1 });
 
     res.status(200).json(jobs.map(formatJobResponse));
   } catch (error) {
-    console.error('Error fetching all jobs:', error);
     res.status(500).json({ message: 'Server Error loading job cards.' });
   }
 };
 
-// @desc    Get active job cards (not Completed)
-// @route   GET /api/jobs/active
-// @access  Private
 export const getActiveJobs = async (req, res) => {
   try {
-    const activeJobs = await JobCard.find({ status: { $ne: 'Completed' } })
+    const activeJobs = await JobCard.find({ 
+      status: { $ne: 'Completed' },
+      isDeleted: { $ne: true }
+    })
       .populate('customer', 'name phone')
       .populate('vehicle', 'make model licensePlate')
       .sort({ createdAt: -1 });
 
     res.status(200).json(activeJobs.map(formatJobResponse));
   } catch (error) {
-    console.error('Error fetching active jobs:', error);
     res.status(500).json({ message: 'Server Error loading active repairs.' });
   }
 };
@@ -189,8 +205,15 @@ export const createJob = async (req, res) => {
     const lastNum = lastJob && lastJob.jobId ? parseInt(lastJob.jobId.replace('JC-', ''), 10) : 1000;
     const newJobId = `JC-${(isNaN(lastNum) ? 1000 : lastNum) + 1}`;
 
-    // 4. Calculate financials securely
-    const { sanitizedItems, subtotal, tax, totalCost } = calculateSecureFinancials(lineItems, Boolean(applyGST));
+    // 4. Calculate financials securely (with item-level dates & profit)
+    const { 
+      sanitizedItems, 
+      totalActualCost, 
+      subtotal, 
+      tax, 
+      totalCost, 
+      grossProfit 
+    } = calculateSecureFinancials(lineItems, Boolean(applyGST));
 
     // Consolidate customer complaint text
     const cleanCustomerRequests = customerRequests ? String(customerRequests).trim() : '';
@@ -211,9 +234,11 @@ export const createJob = async (req, res) => {
       deliveryDate: deliveryDate || null,
       lineItems: sanitizedItems,
       applyGST: Boolean(applyGST),
+      totalActualCost,
       subtotal,
       tax,
-      totalCost
+      totalCost,
+      grossProfit
     });
 
     res.status(201).json({ message: 'Job Card created successfully.', job: newJob });
@@ -277,7 +302,15 @@ export const updateJob = async (req, res) => {
       assignedMechanics = String(mechanic).split(',').map(m => m.trim()).filter(Boolean);
     }
 
-    const { sanitizedItems, subtotal, tax, totalCost } = calculateSecureFinancials(lineItems, Boolean(applyGST));
+    // Calculate financials securely with item dates and gross profit
+    const { 
+      sanitizedItems, 
+      totalActualCost, 
+      subtotal, 
+      tax, 
+      totalCost, 
+      grossProfit 
+    } = calculateSecureFinancials(lineItems, Boolean(applyGST));
 
     const updatedJob = await JobCard.findOneAndUpdate(
       { jobId },
@@ -292,11 +325,13 @@ export const updateJob = async (req, res) => {
         deliveryDate: deliveryDate || existingJob.deliveryDate,
         lineItems: sanitizedItems,
         applyGST: Boolean(applyGST),
+        totalActualCost,
         subtotal,
         tax,
-        totalCost
+        totalCost,
+        grossProfit
       },
-      { new: true }
+      { returnDocument: 'after', runValidators: true }
     ).populate('customer').populate('vehicle');
 
     res.status(200).json({ message: 'Job Card updated successfully.', job: updatedJob });
@@ -322,7 +357,7 @@ export const updateJobStatus = async (req, res) => {
     const updatedJob = await JobCard.findOneAndUpdate(
       { jobId },
       { status },
-      { new: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!updatedJob) {
@@ -339,15 +374,101 @@ export const updateJobStatus = async (req, res) => {
 // @desc    Delete Job Card permanently
 // @route   DELETE /api/jobs/:jobId
 // @access  Private (Admin only)
+// @desc    Soft-delete / Archive a Job Card
+// @route   DELETE /api/jobs/:jobId
+// @access  Private (Admin only)
 export const deleteJob = async (req, res) => {
   try {
-    const deletedJob = await JobCard.findOneAndDelete({ jobId: req.params.jobId });
-    if (!deletedJob) {
+    const updatedJob = await JobCard.findOneAndUpdate(
+      { jobId: req.params.jobId },
+      { 
+        isDeleted: true,
+        deletedAt: new Date(),
+        status: 'Cancelled' // optional: marks status clearly
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!updatedJob) {
       return res.status(404).json({ message: 'Job Card not found.' });
     }
-    res.status(200).json({ message: 'Job Card deleted permanently.' });
+
+    res.status(200).json({ message: 'Job Card archived successfully without losing vehicle history.' });
   } catch (error) {
-    console.error('Error deleting job card:', error);
-    res.status(500).json({ message: 'Failed to delete Job Card.' });
+    console.error('Error archiving job card:', error);
+    res.status(500).json({ message: 'Failed to archive Job Card.' });
+  }
+};
+
+// @desc    Get complete service history for a specific vehicle by license plate
+// @route   GET /api/jobs/vehicle-history/:licensePlate
+// @access  Private
+export const getVehicleServiceHistory = async (req, res) => {
+  try {
+    const rawPlate = String(req.params.licensePlate || '').trim().toUpperCase();
+    const cleanPlate = rawPlate.replace(/[^A-Z0-9 -]/g, '');
+    const compactPlate = cleanPlate.replace(/[^A-Z0-9]/g, '');
+
+    // 1. Find the vehicle record
+    const allVehicles = await Vehicle.find().populate('owner', 'name phone');
+    const vehicle = allVehicles.find(
+      v => (v.licensePlate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === compactPlate
+    );
+
+    // 2. Query all job cards associated with this vehicle (by ObjectId or plate string fallback)
+    const query = vehicle
+      ? { $or: [{ vehicle: vehicle._id }, { 'vehicle.licensePlate': cleanPlate }] }
+      : { 'vehicle.licensePlate': cleanPlate };
+
+    // In getVehicleServiceHistory:
+    // Queries all work history regardless of whether the operational card was archived
+    const jobs = await JobCard.find(query)
+      .populate('customer', 'name phone')
+      .populate('vehicle', 'make model licensePlate mileage')
+      .sort({ createdAt: -1 });
+
+    // 3. Compute aggregate history metrics
+    let totalLifetimeSpend = 0;
+    let totalLaborHours = 0;
+    const partsReplacedList = [];
+
+    jobs.forEach(job => {
+      totalLifetimeSpend += Number(job.totalCost || job.subtotal || 0);
+      totalLaborHours += Number(job.laborHours || 0);
+
+      if (Array.isArray(job.lineItems)) {
+        job.lineItems.forEach(item => {
+          if (item.type === 'Part') {
+            partsReplacedList.push({
+              name: item.name,
+              rate: item.rate,
+              date: item.date || job.jobDate || job.createdAt,
+              jobId: job.jobId
+            });
+          }
+        });
+      }
+    });
+
+    res.status(200).json({
+      vehicle: vehicle || {
+        licensePlate: cleanPlate,
+        make: jobs[0]?.vehicle?.make || 'Unknown',
+        model: jobs[0]?.vehicle?.model || 'Vehicle',
+        owner: jobs[0]?.customer || null
+      },
+      metrics: {
+        totalVisits: jobs.length,
+        totalLifetimeSpend: Number(totalLifetimeSpend.toFixed(2)),
+        totalLaborHours: Number(totalLaborHours.toFixed(1)),
+        firstVisit: jobs[jobs.length - 1]?.jobDate || jobs[jobs.length - 1]?.createdAt || null,
+        lastVisit: jobs[0]?.jobDate || jobs[0]?.createdAt || null
+      },
+      partsReplaced: partsReplacedList,
+      history: jobs
+    });
+  } catch (error) {
+    console.error('Error fetching vehicle service history:', error);
+    res.status(500).json({ message: 'Server error retrieving vehicle history.', error: error.message });
   }
 };

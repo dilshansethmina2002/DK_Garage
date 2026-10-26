@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Package,
+  History,
   Car,
   Users,
   BarChart3,
@@ -32,17 +33,20 @@ const Sidebar = ({ isOpen, onClose }) => {
     localStorage.removeItem('user');
     sessionStorage.clear();
     if (onClose) onClose();
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
     { name: 'Job Cards', path: '/job-cards', icon: <ClipboardList className="w-5 h-5" /> },
     { name: 'Inventory', path: '/inventory', icon: <Package className="w-5 h-5" /> },
+    { name: 'Vehicle History', path: '/vehicles/history', icon: <History className="w-5 h-5" /> },
     { name: 'Vehicles', path: '/vehicles', icon: <Car className="w-5 h-5" /> },
     { name: 'Customers', path: '/customers', icon: <Users className="w-5 h-5" /> },
     { name: 'Reports', path: '/reports', icon: <BarChart3 className="w-5 h-5" /> },
     { name: 'Payments', path: '/finance', icon: <CreditCard className="w-5 h-5" /> },
+    {name: 'New Valuation', path: '/valuations/new', icon: <ClipboardList className="w-5 h-5" />},
+    {name: 'Valuations', path: '/valuations', icon: <ClipboardList className="w-5 h-5" />},
     // Only visible to workshop Administrators
     ...(isAdmin ? [{ name: 'User Management', path: '/users', icon: <UserCog className="w-5 h-5" /> }] : [])
   ];

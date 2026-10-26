@@ -8,27 +8,35 @@ import JobCardsList from './Pages/JobCardsList';
 import JobCardWorkspace from './Pages/JobCardWorkspace';
 import Vehicles from './Pages/Vehicles';
 import UserManagement from './Pages/UserManagement';
+import VehicleHistory from './Pages/VehicleHistory';
+import ValuationWorkspace from './Pages/ValuationWorkspace';
+import ValuationsList from './Pages/ValuationsList';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Public Route - No Sidebar */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
 
         {/* Protected Routes - Wrapped in Sidebar Layout */}
         <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/job-cards" element={<JobCardsList />} />
           <Route path="/job-cards/workspace" element={<JobCardWorkspace />} />
           <Route path="/job-cards/workspace/:jobId" element={<JobCardWorkspace />} />
           <Route path="/job/:jobId" element={<JobDetails />} />
+          <Route path="/vehicles/history" element={<VehicleHistory />} />
+          <Route path="/vehicles/history/:plateNumber" element={<VehicleHistory />} />
           <Route path="/inventory" element={<div className="p-8 font-bold text-xl">Inventory Coming Soon</div>} />
           <Route path="/vehicles" element={<Vehicles />} />
           <Route path="/customers" element={<div className="p-8 font-bold text-xl">Customers Coming Soon</div>} />
           <Route path="/reports" element={<div className="p-8 font-bold text-xl">Reports Coming Soon</div>} />
           <Route path="/finance" element={<div className="p-8 font-bold text-xl">Finance Coming Soon</div>} />
           <Route path="/users" element={<UserManagement />} />
+          <Route path="/valuations" element={<ValuationsList />} />
+          <Route path="/valuations/new" element={<ValuationWorkspace />} />
+          <Route path="/valuations/workspace/:id" element={<ValuationWorkspace />} />
         </Route>
       </Routes>
     </BrowserRouter>

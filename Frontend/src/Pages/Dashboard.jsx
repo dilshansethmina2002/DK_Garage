@@ -1,58 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
   Car, Wrench, CircleDollarSign, Plus, AlertCircle,
-  Package, Users, ClipboardList, X, ChevronRight, Clock, ArrowUpRight,
-  UserCheck, Check, ChevronDown, Search, FileText, Sparkles
+  ChevronRight, Clock, EyeOff, TrendingUp, ShieldAlert,
+  AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import API from '../api';
 
-const weeklyRevenue = [
-  { name: 'Mon', revenue: 45000 },
-  { name: 'Tue', revenue: 52000 },
-  { name: 'Wed', revenue: 38000 },
-  { name: 'Thu', revenue: 65000 },
-  { name: 'Fri', revenue: 48000 },
-  { name: 'Sat', revenue: 85000 },
-  { name: 'Sun', revenue: 30000 },
-];
-
-const commonIssues = [
-  'Regular Service & Oil Change',
-  'Brake Pad Replacement / Noise',
-  'AC Not Cooling',
-  'Engine Check Light On',
-  'Suspension Knocking',
-  'Wheel Alignment & Balance'
-];
-
 const Dashboard = () => {
+  const [allJobs, setAllJobs] = useState([]);
   const [activeJobs, setActiveJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-
-  // Registered mechanics from DB
-  const [registeredMechanics, setRegisteredMechanics] = useState([]);
-  const [selectedMechanics, setSelectedMechanics] = useState([]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [mechSearch, setMechSearch] = useState('');
-  const dropdownRef = useRef(null);
+  const [analyticsView, setAnalyticsView] = useState('revenue'); // 'revenue' | 'profit'
 
   const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    customerName: '',
-    customerPhone: '',
-    make: '',
-    model: '',
-    licensePlate: '',
-    customerRequests: ''
-  });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -70,125 +36,216 @@ const Dashboard = () => {
       return;
     }
 
-    fetchJobs();
-    fetchRegisteredMechanics();
+    fetchDashboardData();
   }, [navigate]);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const fetchJobs = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await API.get('/api/jobs/active');
-      setActiveJobs(response.data);
+      const [activeRes, allRes] = await Promise.all([
+        API.get('/api/jobs/active').catch(() => ({ data: [] })),
+        API.get('/api/jobs').catch(() => ({ data: [] }))
+      ]);
+
+      setActiveJobs(activeRes.data || []);
+      setAllJobs(allRes.data || []);
     } catch (err) {
       if (err.response?.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         navigate('/login');
       } else {
-        setError("Failed to load active repairs from server.");
+        setError('Failed to load garage dashboard intelligence from server.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchRegisteredMechanics = async () => {
-    try {
-      const res = await API.get('/api/users/mechanics');
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        setRegisteredMechanics(res.data);
-      } else {
-        const fallbackRes = await API.get('/api/users');
-        const filtered = (fallbackRes.data || []).filter(u =>
-          String(u.role).toLowerCase() === 'mechanic'
-        );
-        setRegisteredMechanics(filtered);
-      }
-    } catch {
-      try {
-        const fallbackRes = await API.get('/api/users');
-        const filtered = (fallbackRes.data || []).filter(u =>
-          String(u.role).toLowerCase() === 'mechanic'
-        );
-        setRegisteredMechanics(filtered);
-      } catch (fallbackErr) {
-        console.warn("Could not load mechanics list:", fallbackErr);
-      }
-    }
-  };
-
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const addQuickIssue = (issue) => {
-    setFormData(prev => ({
-      ...prev,
-      customerRequests: prev.customerRequests
-        ? `${prev.customerRequests.trim()}\n• ${issue}`
-        : `• ${issue}`
-    }));
-  };
-
-  const toggleMechanicSelection = (mechanicName) => {
-    if (selectedMechanics.includes(mechanicName)) {
-      setSelectedMechanics(selectedMechanics.filter(m => m !== mechanicName));
-    } else {
-      setSelectedMechanics([...selectedMechanics, mechanicName]);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (selectedMechanics.length === 0) {
-      alert("Please select at least one registered mechanic.");
-      return;
-    }
-
-    const payload = {
-      ...formData,
-      mechanics: selectedMechanics,
-      mechanic: selectedMechanics.join(', ')
-    };
-
-    try {
-      await API.post('/api/jobs', payload);
-      setIsModalOpen(false);
-      setFormData({
-        customerName: '',
-        customerPhone: '',
-        make: '',
-        model: '',
-        licensePlate: '',
-        customerRequests: ''
-      });
-      setSelectedMechanics([]);
-      setMechSearch('');
-      fetchJobs();
-    } catch (err) {
-      alert(err.response?.data?.message || "Failed to create job card.");
-    }
-  };
-
   const handleStatusChange = async (jobId, newStatus) => {
     try {
       await API.put(`/api/jobs/${jobId}/status`, { status: newStatus });
-      setActiveJobs(activeJobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j));
+      setActiveJobs(prev =>
+        prev.map(j => (j.id === jobId || j._id === jobId) ? { ...j, status: newStatus } : j)
+      );
+      setAllJobs(prev =>
+        prev.map(j => (j.id === jobId || j._id === jobId) ? { ...j, status: newStatus } : j)
+      );
     } catch {
-      alert("Failed to update status.");
+      alert('Failed to update status on server.');
     }
   };
+
+  // Helper to extract clean YYYY-MM-DD from any date string/timestamp
+  const toISODate = (d) => {
+    if (!d) return '';
+    try {
+      return new Date(d).toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // Today's Exact Income & Net Profit (Evaluates both line-item work dates and job creation date)
+  const todayFinancials = useMemo(() => {
+    let billedTotal = 0;
+    let actualCostTotal = 0;
+    let itemsCount = 0;
+
+    allJobs.forEach(job => {
+      const isJobCreatedToday = toISODate(job.jobDate || job.createdAt) === todayStr;
+
+      if (Array.isArray(job.lineItems) && job.lineItems.length > 0) {
+        job.lineItems.forEach(item => {
+          const itemDate = toISODate(item.date) || (isJobCreatedToday ? todayStr : '');
+          if (itemDate === todayStr) {
+            const actual = Math.max(0, Number(item.costPrice) || 0);
+            const rate = Math.max(0, Number(item.rate) || 0);
+
+            actualCostTotal += actual;
+            billedTotal += rate;
+            itemsCount++;
+          }
+        });
+      } else if (isJobCreatedToday && job.total) {
+        // Fallback if legacy job without lineItems
+        billedTotal += Number(job.total) || 0;
+      }
+    });
+
+    const grossProfit = billedTotal - actualCostTotal;
+    const margin = billedTotal > 0 ? ((grossProfit / billedTotal) * 100).toFixed(1) : '0.0';
+
+    return {
+      billedTotal,
+      actualCostTotal,
+      grossProfit,
+      margin,
+      itemsCount
+    };
+  }, [allJobs, todayStr]);
+
+  // Precise 7-Day Rolling Revenue & Profit Analytics
+  const preciseWeeklyAnalytics = useMemo(() => {
+    const daysMap = [];
+    const now = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const target = new Date(now);
+      target.setDate(now.getDate() - i);
+      const dateKey = target.toISOString().split('T')[0];
+      const shortDay = target.toLocaleDateString('en-US', { weekday: 'short' });
+
+      daysMap.push({
+        dateKey,
+        name: shortDay,
+        revenue: 0,
+        cost: 0,
+        profit: 0
+      });
+    }
+
+    allJobs.forEach(job => {
+      const fallbackDate = toISODate(job.jobDate || job.createdAt);
+
+      if (Array.isArray(job.lineItems) && job.lineItems.length > 0) {
+        job.lineItems.forEach(item => {
+          const itemDate = toISODate(item.date) || fallbackDate;
+          const targetDay = daysMap.find(d => d.dateKey === itemDate);
+          if (targetDay) {
+            const actual = Math.max(0, Number(item.costPrice) || 0);
+            const charging = Math.max(0, Number(item.rate) || 0);
+            targetDay.revenue += charging;
+            targetDay.cost += actual;
+          }
+        });
+      } else if (fallbackDate) {
+        const targetDay = daysMap.find(d => d.dateKey === fallbackDate);
+        if (targetDay && job.total) {
+          targetDay.revenue += Number(job.total) || 0;
+        }
+      }
+    });
+
+    daysMap.forEach(d => {
+      d.profit = d.revenue - d.cost;
+    });
+
+    const total7DayRevenue = daysMap.reduce((acc, curr) => acc + curr.revenue, 0);
+    const total7DayProfit = daysMap.reduce((acc, curr) => acc + curr.profit, 0);
+    const peakDay = [...daysMap].sort((a, b) => b.revenue - a.revenue)[0];
+
+    return {
+      chartData: daysMap,
+      total7DayRevenue,
+      total7DayProfit,
+      peakDay: peakDay || { name: 'N/A', revenue: 0 }
+    };
+  }, [allJobs]);
+
+  // Live Garage Warnings (Detects actual operational bottlenecks)
+  const workshopAlerts = useMemo(() => {
+    const alerts = [];
+    const nowMs = Date.now();
+
+    // 1. Unassigned Active Jobs
+    const unassignedJobs = activeJobs.filter(j => {
+      const mechs = Array.isArray(j.mechanics) ? j.mechanics : [j.mechanic].filter(Boolean);
+      return mechs.length === 0;
+    });
+    if (unassignedJobs.length > 0) {
+      alerts.push({
+        id: 'unassigned',
+        type: 'critical',
+        title: `${unassignedJobs.length} Vehicle(s) Have No Mechanic Assigned`,
+        desc: `Job(s) ${unassignedJobs.map(j => j.id || j.jobId || j._id).slice(0, 3).join(', ')} are idling on the workshop floor without a lead technician.`
+      });
+    }
+
+    // 2. Delayed Inspections (> 24 hours in Pending Inspection)
+    const delayedInspections = activeJobs.filter(j => {
+      if (j.status !== 'Pending Inspection') return false;
+      const createdMs = new Date(j.createdAt || j.jobDate).getTime();
+      return nowMs - createdMs > 24 * 60 * 60 * 1000;
+    });
+    if (delayedInspections.length > 0) {
+      alerts.push({
+        id: 'inspection_delay',
+        type: 'warning',
+        title: `${delayedInspections.length} Inspection(s) Delayed Past 24 Hours`,
+        desc: `Vehicles waiting for initial diagnostic writeup. Prioritize immediate inspection.`
+      });
+    }
+
+    // 3. Vehicles Awaiting Parts
+    const awaitingParts = activeJobs.filter(j => j.status === 'Awaiting Parts');
+    if (awaitingParts.length > 0) {
+      alerts.push({
+        id: 'parts_delay',
+        type: 'info',
+        title: `${awaitingParts.length} Repair(s) Awaiting Spare Parts`,
+        desc: `Work paused pending inventory or local supplier delivery for job(s) ${awaitingParts.map(j => j.id || j.jobId || j._id).slice(0, 3).join(', ')}.`
+      });
+    }
+
+    // 4. Overdue Estimated Delivery
+    const overdueJobs = activeJobs.filter(j => {
+      if (!j.deliveryDate || j.status === 'Completed') return false;
+      return toISODate(j.deliveryDate) < todayStr;
+    });
+    if (overdueJobs.length > 0) {
+      alerts.push({
+        id: 'overdue_delivery',
+        type: 'critical',
+        title: `${overdueJobs.length} Vehicle(s) Past Promised Delivery Date`,
+        desc: `Customer promised date has lapsed for ${overdueJobs.map(j => j.vehicle?.licensePlate || j.id || j._id).slice(0, 3).join(', ')}. Action required.`
+      });
+    }
+
+    return alerts;
+  }, [activeJobs, todayStr]);
 
   const renderMechanicsBadges = (job) => {
     const list = Array.isArray(job.mechanics) && job.mechanics.length > 0
@@ -197,7 +254,11 @@ const Dashboard = () => {
         : [];
 
     if (list.length === 0) {
-      return <span className="text-gray-400 italic text-xs">Unassigned</span>;
+      return (
+        <span className="inline-flex items-center gap-1 text-[#BC0202] bg-red-50 border border-red-200 text-[11px] font-black px-2 py-0.5 rounded-md mt-1">
+          <AlertCircle className="w-3 h-3" /> Unassigned
+        </span>
+      );
     }
 
     return (
@@ -205,9 +266,9 @@ const Dashboard = () => {
         {list.map((mech, idx) => (
           <span
             key={idx}
-            className="inline-flex items-center gap-1 bg-gray-100 border border-gray-300 text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-md"
+            className="inline-flex items-center gap-1 bg-slate-100 border border-slate-300 text-slate-800 text-[11px] font-bold px-2 py-0.5 rounded-md"
           >
-            <Wrench className="w-2.5 h-2.5 text-gray-500" />
+            <Wrench className="w-2.5 h-2.5 text-slate-500" />
             {mech}
           </span>
         ))}
@@ -215,600 +276,421 @@ const Dashboard = () => {
     );
   };
 
-  const filteredRegisteredMechanics = registeredMechanics.filter(m =>
-    (m.name || '').toLowerCase().includes(mechSearch.toLowerCase()) ||
-    (m.username || '').toLowerCase().includes(mechSearch.toLowerCase())
-  );
-
   if (!currentUser) return null;
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8 font-sans text-gray-900">
+    <div className="min-h-screen bg-slate-100/80 p-4 sm:p-6 lg:p-8 font-sans text-slate-900">
+      <div className="max-w-[1600px] mx-auto space-y-6">
 
-      {/* Top Header Card */}
-      <div className="bg-white rounded-2xl border-2 border-gray-300 p-5 sm:p-6 mb-6 sm:mb-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-300 mb-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            System Live
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-950">
-            DK Automobile Dashboard
-          </h1>
-          <p className="text-gray-600 text-xs sm:text-sm mt-1">
-            Logged in as <strong className="text-gray-950 font-bold">{currentUser.username}</strong>
-            <span className="text-gray-400 mx-2">•</span>
-            <span className="text-gray-700 uppercase font-extrabold text-xs tracking-wider">{currentUser.role || 'Staff'}</span>
-          </p>
-        </div>
-
-        <button
-          onClick={() => {
-            setFormData({
-              customerName: '',
-              customerPhone: '',
-              make: '',
-              model: '',
-              licensePlate: '',
-              customerRequests: ''
-            });
-            setSelectedMechanics([]);
-            setMechSearch('');
-            setIsModalOpen(true);
-            fetchRegisteredMechanics();
-          }}
-          className="w-full sm:w-auto bg-[#BC0202] hover:bg-[#830000] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-[#830000]"
-        >
-          <Plus className="w-5 h-5 stroke-[2.5]" />
-          New Job Card
-        </button>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-50 border-2 border-red-300 text-red-900 p-4 rounded-xl mb-6 flex items-center justify-between text-sm shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-            <span className="font-semibold">{error}</span>
-          </div>
-          <button onClick={() => setError(null)} className="text-xs text-red-800 underline font-extrabold cursor-pointer">
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Metric Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-md p-6 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-900" />
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-black uppercase tracking-wider text-slate-500">Vehicles in Workshop</span>
-              <h3 className="text-4xl font-black text-slate-950 mt-2">{activeJobs.length}</h3>
+        {/* Top Header Card */}
+        <div className="bg-white rounded-2xl border-2 border-slate-300 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-red-50 text-[#BC0202] border border-red-200 mb-2">
+              <span className="w-2 h-2 rounded-full bg-[#BC0202] animate-pulse" />
+              Live Workshop Engine
             </div>
-            <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 flex items-center justify-center shadow-inner">
-              <Car className="w-6 h-6 stroke-[2.2]" />
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+              DK Automobile Control Center
+            </h1>
+            <p className="text-slate-600 text-xs sm:text-sm mt-1">
+              Logged in as <strong className="text-slate-950 font-bold">{currentUser.username}</strong>
+              <span className="text-slate-400 mx-2">•</span>
+              <span className="text-slate-700 uppercase font-extrabold text-xs tracking-wider">{currentUser.role || 'Staff'}</span>
+              <span className="text-slate-400 mx-2">•</span>
+              <span>Today: <strong>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</strong></span>
+            </p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 font-semibold">
-            <span>Current Floor Occupancy</span>
-            <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold">Active</span>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-2xl border-2 border-amber-300 shadow-md p-6 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-amber-500" />
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-black uppercase tracking-wider text-amber-700">Pending Inspections</span>
-              <h3 className="text-4xl font-black text-amber-950 mt-2">
-                {activeJobs.filter(job => job.status === 'Pending Inspection').length}
-              </h3>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-300 text-amber-700 flex items-center justify-center shadow-inner">
-              <Clock className="w-6 h-6 stroke-[2.2]" />
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-amber-100 flex items-center justify-between text-xs text-amber-800 font-semibold">
-            <span>Requires Diagnostics</span>
-            <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">Priority</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-md p-6 flex flex-col justify-between relative overflow-hidden sm:col-span-2 lg:col-span-1">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600" />
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-700">Estimated Target</span>
-              <h3 className="text-3xl sm:text-4xl font-black text-emerald-950 mt-2">LKR 45,000</h3>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 flex items-center justify-center shadow-inner">
-              <CircleDollarSign className="w-6 h-6 stroke-[2.2]" />
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-emerald-100 flex items-center justify-between text-xs text-emerald-800 font-semibold">
-            <span>Daily Projection</span>
-            <span className="bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded font-bold">Revenue</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Operations Quick Menu */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-xs font-black text-gray-600 uppercase tracking-wider mb-3 px-1">
-          Operations & Modules
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             to="/job-cards/workspace"
-            className="p-5 rounded-2xl bg-white border-2 border-gray-300 shadow-sm hover:border-gray-900 hover:shadow-md transition-all flex flex-col justify-between group"
+            className="w-full sm:w-auto bg-[#BC0202] hover:bg-[#830000] text-white px-7 py-3 rounded-xl font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-[#830000]"
           >
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-300 group-hover:bg-gray-900 group-hover:text-white transition-colors">
-                <ClipboardList className="w-6 h-6 stroke-[2.2]" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-950 transition-colors" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-base text-gray-950">Job Workspace</h3>
-              <p className="text-gray-600 text-xs hidden sm:block mt-1">Open repairs editor</p>
-            </div>
-          </Link>
-
-          <Link
-            to="/vehicles"
-            className="p-5 rounded-2xl bg-white border-2 border-gray-300 shadow-sm hover:border-gray-900 hover:shadow-md transition-all flex flex-col justify-between group"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-300 group-hover:bg-gray-900 group-hover:text-white transition-colors">
-                <Car className="w-6 h-6 stroke-[2.2]" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-950 transition-colors" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-base text-gray-950">Vehicles</h3>
-              <p className="text-gray-600 text-xs hidden sm:block mt-1">Database & history</p>
-            </div>
-          </Link>
-
-          <Link
-            to="/inventory"
-            className="p-5 rounded-2xl bg-white border-2 border-gray-300 shadow-sm hover:border-gray-900 hover:shadow-md transition-all flex flex-col justify-between group"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-300 group-hover:bg-gray-900 group-hover:text-white transition-colors">
-                <Package className="w-6 h-6 stroke-[2.2]" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-950 transition-colors" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-base text-gray-950">Spare Parts</h3>
-              <p className="text-gray-600 text-xs hidden sm:block mt-1">Stock balance</p>
-            </div>
-          </Link>
-
-          <Link
-            to="/customers"
-            className="p-5 rounded-2xl bg-white border-2 border-gray-300 shadow-sm hover:border-gray-900 hover:shadow-md transition-all flex flex-col justify-between group"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center border border-gray-300 group-hover:bg-gray-900 group-hover:text-white transition-colors">
-                <Users className="w-6 h-6 stroke-[2.2]" />
-              </div>
-              <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-950 transition-colors" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-base text-gray-950">Customers</h3>
-              <p className="text-gray-600 text-xs hidden sm:block mt-1">Contacts list</p>
-            </div>
+            <Plus className="w-5 h-5 stroke-[2.5]" />
+            New Job Card Workspace
           </Link>
         </div>
-      </div>
 
-      {/* Grid: Active Repairs & Revenue Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+        {error && (
+          <div className="bg-red-50 border-2 border-red-300 text-red-900 p-4 rounded-xl flex items-center justify-between text-sm shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+              <span className="font-bold">{error}</span>
+            </div>
+            <button onClick={() => setError(null)} className="text-xs text-red-800 underline font-extrabold cursor-pointer">
+              Dismiss
+            </button>
+          </div>
+        )}
 
-        {/* Left Column: Active Repairs */}
-        <div className="lg:col-span-7 xl:col-span-8 bg-white rounded-2xl border-2 border-gray-300 overflow-hidden flex flex-col shadow-sm">
-          <div className="p-4 sm:p-5 border-b-2 border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-gray-800" />
-              <h2 className="font-black text-sm sm:text-base text-gray-950 uppercase tracking-wide">
-                Active Repairs on Floor
+        {/* Real Live Workshop Warnings */}
+        {workshopAlerts.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <ShieldAlert className="w-4 h-4 text-[#BC0202]" />
+              <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                Actionable Workshop Alerts ({workshopAlerts.length})
               </h2>
             </div>
-            <Link
-              to="/job-cards"
-              className="text-xs font-black text-slate-800 hover:text-black transition-colors flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-gray-300 shadow-xs"
-            >
-              View All <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="border-b-2 border-gray-200 bg-gray-100/75 text-gray-700 text-xs uppercase font-black tracking-wider">
-                  <th className="py-3.5 px-5">Job Details</th>
-                  <th className="py-3.5 px-5">Customer & Assigned Mechanics</th>
-                  <th className="py-3.5 px-5 text-right">Status Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {activeJobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-5">
-                      <Link
-                        to={`/job-cards/workspace/${job.id}`}
-                        className="font-black text-slate-900 hover:text-[#BC0202] text-sm hover:underline block"
-                      >
-                        {job.id}
-                      </Link>
-                      <span className="text-gray-700 text-xs font-bold mt-0.5 block">
-                        {job.vehicle}
-                      </span>
-                    </td>
-                    <td className="py-4 px-5">
-                      <p className="text-gray-950 font-extrabold">{job.customer}</p>
-                      {renderMechanicsBadges(job)}
-                    </td>
-                    <td className="py-4 px-5 text-right">
-                      <select
-                        value={job.status}
-                        onChange={(e) => handleStatusChange(job.id, e.target.value)}
-                        className="text-xs font-bold px-3 py-1.5 rounded-lg border-2 border-gray-300 bg-white text-gray-800 outline-none cursor-pointer focus:border-slate-800"
-                      >
-                        <option value="Pending Inspection">Pending Inspection</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Awaiting Parts">Awaiting Parts</option>
-                        <option value="Ready for Pickup">Ready for Pickup</option>
-                        <option value="Completed">Completed</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Card List View */}
-          <div className="md:hidden divide-y divide-gray-200">
-            {activeJobs.map((job) => (
-              <div key={job.id} className="p-4 space-y-3">
-                <div className="flex items-start justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {workshopAlerts.map(alert => (
+                <div
+                  key={alert.id}
+                  className={`p-4 rounded-2xl border-2 flex items-start gap-3 shadow-xs ${alert.type === 'critical'
+                      ? 'bg-red-50/90 border-red-300 text-red-950'
+                      : alert.type === 'warning'
+                        ? 'bg-amber-50/90 border-amber-300 text-amber-950'
+                        : 'bg-blue-50/90 border-blue-300 text-blue-950'
+                    }`}
+                >
+                  <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${alert.type === 'critical' ? 'text-red-600' : alert.type === 'warning' ? 'text-amber-600' : 'text-blue-600'
+                    }`} />
                   <div>
-                    <Link
-                      to={`/job-cards/workspace/${job.id}`}
-                      className="font-black text-slate-900 text-sm hover:underline"
-                    >
-                      {job.id}
-                    </Link>
-                    <p className="text-gray-950 font-bold text-sm">{job.vehicle}</p>
+                    <h4 className="font-black text-xs uppercase tracking-tight">{alert.title}</h4>
+                    <p className="text-xs font-semibold opacity-90 mt-0.5 leading-snug">{alert.desc}</p>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-                <div className="text-xs text-gray-600">
-                  Customer: <strong className="text-gray-900">{job.customer}</strong>
-                </div>
+        {/* Financial & Floor KPI Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
 
-                <div>
-                  <span className="text-[11px] font-bold text-gray-500 uppercase block mb-1">Mechanics Assigned:</span>
-                  {renderMechanicsBadges(job)}
-                </div>
-
-                <div className="pt-1">
-                  <select
-                    value={job.status}
-                    onChange={(e) => handleStatusChange(job.id, e.target.value)}
-                    className="w-full text-xs font-bold p-2.5 rounded-xl border-2 border-gray-300 bg-white text-gray-800 outline-none"
-                  >
-                    <option value="Pending Inspection">Pending Inspection</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Awaiting Parts">Awaiting Parts</option>
-                    <option value="Ready for Pickup">Ready for Pickup</option>
-                    <option value="Completed">Completed</option>
-                  </select>
-                </div>
+          {/* KPI 1: Today's Billed Revenue */}
+          <div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-xs p-6 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600" />
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-800">Today's Billed Income</span>
+                <h3 className="text-3xl font-black text-emerald-950 mt-2">
+                  LKR {todayFinancials.billedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
               </div>
-            ))}
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 flex items-center justify-center">
+                <CircleDollarSign className="w-6 h-6 stroke-[2.2]" />
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-emerald-100 flex items-center justify-between text-xs text-emerald-800 font-bold">
+              <span>{todayFinancials.itemsCount} Billed Item(s) Today</span>
+              <span className="bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded font-black text-[11px]">Gross Billed</span>
+            </div>
           </div>
 
-          {activeJobs.length === 0 && !loading && (
-            <div className="py-12 text-center text-gray-500 text-sm font-semibold">
-              No active repair cards currently registered.
+          {/* KPI 2: Today's Net Gross Profit */}
+          <div className="bg-white rounded-2xl border-2 border-amber-300 shadow-xs p-6 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-amber-500" />
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                  <EyeOff className="w-3.5 h-3.5 text-amber-700" /> Today's Net Profit
+                </span>
+                <h3 className={`text-3xl font-black mt-2 ${todayFinancials.grossProfit >= 0 ? 'text-amber-950' : 'text-red-600'}`}>
+                  LKR {todayFinancials.grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </h3>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-300 text-amber-700 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 stroke-[2.2]" />
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* Right Column: Weekly Revenue Chart */}
-        <div className="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl border-2 border-gray-300 p-5 sm:p-6 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
-              <h2 className="font-black text-sm text-gray-950 uppercase tracking-wide flex items-center gap-2">
-                <CircleDollarSign className="w-4 h-4 text-emerald-700" />
-                Revenue Analytics
-              </h2>
-              <span className="text-xs font-black text-gray-800 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-300">
-                LKR
+            <div className="mt-4 pt-3 border-t border-amber-100 flex items-center justify-between text-xs text-amber-900 font-bold">
+              <span>Actual Cost: LKR {todayFinancials.actualCostTotal.toFixed(0)}</span>
+              <span className="bg-amber-100 text-amber-950 px-2 py-0.5 rounded font-black text-[11px]">
+                {todayFinancials.margin}% Margin
               </span>
             </div>
+          </div>
 
-            <div className="h-60 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyRevenue} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={{ stroke: '#d1d5db' }}
-                    tickLine={false}
-                    tick={{ fill: '#374151', fontSize: 11, fontWeight: 700 }}
-                    dy={6}
-                  />
-                  <YAxis
-                    axisLine={{ stroke: '#d1d5db' }}
-                    tickLine={false}
-                    tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 600 }}
-                  />
-                  <Tooltip
-                    cursor={{ fill: '#f3f4f6' }}
-                    contentStyle={{
-                      borderRadius: '12px',
-                      border: '2px solid #d1d5db',
-                      backgroundColor: '#ffffff',
-                      color: '#0f172a',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                    }}
-                  />
-                  <Bar dataKey="revenue" fill="#0f172a" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* KPI 3: Vehicles in Workshop */}
+          <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-xs p-6 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-900" />
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Active in Workshop</span>
+                <h3 className="text-3xl font-black text-slate-950 mt-2">{activeJobs.length}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 flex items-center justify-center">
+                <Car className="w-6 h-6 stroke-[2.2]" />
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 font-bold">
+              <span>{activeJobs.filter(j => j.status === 'In Progress').length} Under Mechanical Repair</span>
+              <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-black text-[11px]">Floor Load</span>
             </div>
           </div>
 
-          <div className="pt-4 border-t-2 border-gray-200 mt-4 flex items-center justify-between text-xs text-gray-600 font-semibold">
-            <span>Peak: <strong className="text-gray-900">Saturday</strong></span>
-            <span className="font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-              LKR 85,000
-            </span>
+          {/* KPI 4: Pending Diagnostic Inspection */}
+          <div className="bg-white rounded-2xl border-2 border-red-300 shadow-xs p-6 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#BC0202]" />
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-red-700">Awaiting Inspection</span>
+                <h3 className="text-3xl font-black text-red-950 mt-2">
+                  {activeJobs.filter(job => job.status === 'Pending Inspection').length}
+                </h3>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-300 text-[#BC0202] flex items-center justify-center">
+                <Clock className="w-6 h-6 stroke-[2.2]" />
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-red-100 flex items-center justify-between text-xs text-red-800 font-bold">
+              <span>{activeJobs.filter(j => j.status === 'Ready for Pickup').length} Ready for Customer Pickup</span>
+              <span className="bg-red-100 text-red-900 px-2 py-0.5 rounded font-black text-[11px]">Priority</span>
+            </div>
           </div>
+
+        </div>
+
+        {/* Main Grid: Active Repairs Table & Precise Revenue Analytics */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+
+          {/* Left Column: Active Repairs Floor Table */}
+          <div className="lg:col-span-7 xl:col-span-8 bg-white rounded-2xl border-2 border-slate-300 overflow-hidden flex flex-col shadow-xs">
+            <div className="p-4 sm:p-5 border-b-2 border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-slate-800" />
+                <h2 className="font-black text-sm sm:text-base text-slate-950 uppercase tracking-wide">
+                  Active Repairs on Workshop Floor ({activeJobs.length})
+                </h2>
+              </div>
+              <Link
+                to="/job-cards"
+                className="text-xs font-black text-slate-800 hover:text-black transition-colors flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-xs"
+              >
+                Full Register <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="border-b-2 border-slate-200 bg-slate-100/75 text-slate-700 text-xs uppercase font-black tracking-wider">
+                    <th className="py-3.5 px-5">Job & Vehicle</th>
+                    <th className="py-3.5 px-5">Customer & Mechanics</th>
+                    <th className="py-3.5 px-5 text-right">Floor Status Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {activeJobs.map((job) => (
+                    <tr key={job.id || job._id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-4 px-5">
+                        <Link
+                          to={`/job-cards/workspace/${job.id || job.jobId || job._id}`}
+                          className="font-black text-slate-900 hover:text-[#BC0202] text-sm hover:underline block"
+                        >
+                          {job.id || job.jobId || job._id}
+                        </Link>
+                        <span className="text-slate-800 text-xs font-extrabold mt-0.5 block">
+                          {job.vehicle?.make ? `${job.vehicle.make} ${job.vehicle.model || ''}` : (job.vehicle || 'N/A')}
+                        </span>
+                        <span className="inline-block mt-1 font-black text-[10px] bg-slate-100 border border-slate-300 text-slate-900 px-2 py-0.5 rounded">
+                          {job.vehicle?.licensePlate || job.licensePlate || 'NO-PLATE'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-5">
+                        <p className="text-slate-950 font-black">{job.customer?.name || job.customerName || job.customer || 'N/A'}</p>
+                        <p className="text-xs text-slate-500 font-semibold">{job.customer?.phone || job.customerPhone || ''}</p>
+                        {renderMechanicsBadges(job)}
+                      </td>
+                      <td className="py-4 px-5 text-right">
+                        <select
+                          value={job.status}
+                          onChange={(e) => handleStatusChange(job.id || job._id, e.target.value)}
+                          className={`text-xs font-black px-3 py-1.5 rounded-xl border-2 outline-none cursor-pointer ${job.status === 'In Progress' ? 'bg-blue-50 border-blue-300 text-blue-900' :
+                              job.status === 'Awaiting Parts' ? 'bg-amber-50 border-amber-300 text-amber-900' :
+                                job.status === 'Ready for Pickup' ? 'bg-emerald-50 border-emerald-300 text-emerald-900' :
+                                  job.status === 'Completed' ? 'bg-slate-900 border-slate-900 text-white' :
+                                    'bg-white border-slate-300 text-slate-800'
+                            }`}
+                        >
+                          <option value="Pending Inspection">Pending Inspection</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Awaiting Parts">Awaiting Parts</option>
+                          <option value="Ready for Pickup">Ready for Pickup</option>
+                          <option value="Completed">Completed</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card List View */}
+            <div className="md:hidden divide-y divide-slate-200">
+              {activeJobs.map((job) => (
+                <div key={job.id || job._id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <Link
+                        to={`/job-cards/workspace/${job.id || job.jobId || job._id}`}
+                        className="font-black text-slate-900 text-sm hover:underline"
+                      >
+                        {job.id || job.jobId || job._id}
+                      </Link>
+                      <p className="text-slate-950 font-bold text-sm">
+                        {job.vehicle?.make ? `${job.vehicle.make} ${job.vehicle.model || ''}` : (job.vehicle || 'N/A')}
+                      </p>
+                      <span className="inline-block mt-0.5 font-black text-[10px] bg-slate-100 border border-slate-300 text-slate-900 px-2 py-0.5 rounded">
+                        {job.vehicle?.licensePlate || job.licensePlate || 'NO-PLATE'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-slate-600 font-medium">
+                    Customer: <strong className="text-slate-900">{job.customer?.name || job.customerName || job.customer || 'N/A'}</strong>
+                  </div>
+
+                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mechanics Assigned:</span>
+                    {renderMechanicsBadges(job)}
+                  </div>
+
+                  <div className="pt-1">
+                    <select
+                      value={job.status}
+                      onChange={(e) => handleStatusChange(job.id || job._id, e.target.value)}
+                      className="w-full text-xs font-bold p-2.5 rounded-xl border-2 border-slate-300 bg-white text-slate-800 outline-none"
+                    >
+                      <option value="Pending Inspection">Pending Inspection</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Awaiting Parts">Awaiting Parts</option>
+                      <option value="Ready for Pickup">Ready for Pickup</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {activeJobs.length === 0 && !loading && (
+              <div className="py-16 text-center text-slate-500 text-sm font-bold flex flex-col items-center justify-center gap-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                No active repair cards currently on the floor. All caught up!
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Precise Rolling 7-Day Revenue Analytics */}
+          <div className="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl border-2 border-slate-300 p-5 sm:p-6 flex flex-col justify-between shadow-xs">
+            <div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 pb-3 border-b border-slate-200 gap-2">
+                <div>
+                  <h2 className="font-black text-sm text-slate-950 uppercase tracking-wide flex items-center gap-2">
+                    <CircleDollarSign className="w-4 h-4 text-emerald-700" />
+                    Rolling 7-Day Analytics
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Calculated dynamically from billed jobs</p>
+                </div>
+
+                {/* View Mode Toggle */}
+                <div className="flex rounded-lg border border-slate-300 p-0.5 bg-slate-50 text-xs font-black">
+                  <button
+                    type="button"
+                    onClick={() => setAnalyticsView('revenue')}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${analyticsView === 'revenue' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-black'
+                      }`}
+                  >
+                    Revenue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnalyticsView('profit')}
+                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${analyticsView === 'profit' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-black'
+                      }`}
+                  >
+                    Profit
+                  </button>
+                </div>
+              </div>
+
+              {/* Exact Bar Chart */}
+              <div className="h-64 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={preciseWeeklyAnalytics.chartData}
+                    margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={{ stroke: '#cbd5e1' }}
+                      tickLine={false}
+                      tick={{ fill: '#334155', fontSize: 11, fontWeight: 800 }}
+                      dy={6}
+                    />
+                    <YAxis
+                      axisLine={{ stroke: '#cbd5e1' }}
+                      tickLine={false}
+                      tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                      tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                    />
+                    <Tooltip
+                      cursor={{ fill: '#f1f5f9' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="p-3 bg-white border-2 border-slate-800 rounded-xl shadow-xl text-xs space-y-1">
+                              <p className="font-black text-slate-900 border-b border-slate-100 pb-1">
+                                {data.name} ({data.dateKey})
+                              </p>
+                              <div className="flex justify-between gap-4 font-bold text-slate-700">
+                                <span>Billed Revenue:</span>
+                                <span className="text-slate-950 font-black">LKR {data.revenue.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between gap-4 font-bold text-slate-600">
+                                <span>Actual Cost:</span>
+                                <span>LKR {data.cost.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between gap-4 font-black border-t border-slate-100 pt-1 text-emerald-700">
+                                <span>Gross Margin:</span>
+                                <span>LKR {data.profit.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar
+                      dataKey={analyticsView}
+                      fill={analyticsView === 'revenue' ? '#0f172a' : '#f59e0b'}
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Bottom Breakdown Footer */}
+            <div className="pt-4 border-t-2 border-slate-200 mt-4 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>7-Day Total Billed:</span>
+                <span className="font-black text-slate-950">
+                  LKR {preciseWeeklyAnalytics.total7DayRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>7-Day Net Profit:</span>
+                <span className="font-black text-emerald-700">
+                  LKR {preciseWeeklyAnalytics.total7DayProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-bold pt-2 border-t border-slate-100">
+                <span className="text-slate-500">Peak Day ({preciseWeeklyAnalytics.peakDay.name}):</span>
+                <span className="font-black text-slate-900 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded">
+                  LKR {preciseWeeklyAnalytics.peakDay.revenue.toFixed(0)}
+                </span>
+              </div>
+            </div>
+
+          </div>
+
         </div>
 
       </div>
-
-      {/* Creation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-lg rounded-2xl border-2 border-gray-400 p-6 max-h-[92vh] overflow-y-auto shadow-2xl">
-
-            <div className="flex items-center justify-between pb-3 border-b-2 border-gray-200 mb-4">
-              <h2 className="text-lg font-black text-gray-950 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#BC0202]" /> Create Job Card
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 text-gray-500 hover:text-gray-950 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Customer Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="customerName"
-                    required
-                    placeholder="e.g. Ruwan Silva"
-                    value={formData.customerName}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="text"
-                    name="customerPhone"
-                    required
-                    placeholder="0771234567"
-                    value={formData.customerPhone}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Make *
-                  </label>
-                  <input
-                    type="text"
-                    name="make"
-                    required
-                    placeholder="Toyota"
-                    value={formData.make}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Model *
-                  </label>
-                  <input
-                    type="text"
-                    name="model"
-                    required
-                    placeholder="Yaris"
-                    value={formData.model}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">
-                    Plate Number *
-                  </label>
-                  <input
-                    type="text"
-                    name="licensePlate"
-                    required
-                    placeholder="WP KV-2008"
-                    value={formData.licensePlate}
-                    onChange={handleInputChange}
-                    className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 uppercase font-black outline-none focus:border-slate-800"
-                  />
-                </div>
-              </div>
-
-              {/* REPORTED ISSUES / CUSTOMER REQUESTS AREA */}
-              <div className="bg-gray-50 border-2 border-gray-200 p-3.5 rounded-xl space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block font-black text-gray-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[#BC0202]" />
-                    Customer Request & Issues Reported *
-                  </label>
-                  <span className="text-[11px] text-gray-500 font-semibold">Tap to auto-insert</span>
-                </div>
-
-                {/* Quick select tags */}
-                <div className="flex flex-wrap gap-1.5">
-                  {commonIssues.map((issue, idx) => (
-                    <button
-                      type="button"
-                      key={idx}
-                      onClick={() => addQuickIssue(issue)}
-                      className="text-[11px] font-bold px-2 py-1 bg-white hover:bg-gray-200 border border-gray-300 rounded-lg text-gray-700 transition-colors cursor-pointer"
-                    >
-                      + {issue}
-                    </button>
-                  ))}
-                </div>
-
-                <textarea
-                  name="customerRequests"
-                  required
-                  rows={3}
-                  placeholder="Detail the issues reported by customer (e.g. Brake noise when stopping, engine hesitation at 60km/h, routine oil change)..."
-                  value={formData.customerRequests}
-                  onChange={handleInputChange}
-                  className="w-full bg-white border-2 border-gray-300 rounded-xl p-2.5 text-gray-900 outline-none focus:border-slate-800 resize-none text-xs sm:text-sm font-medium"
-                />
-              </div>
-
-              {/* REGISTERED MECHANICS DROPDOWN & TAG PICKER */}
-              <div className="relative" ref={dropdownRef}>
-                <label className="block font-bold text-gray-700 mb-1">
-                  Assign Registered Mechanics *
-                </label>
-
-                {/* Selected Mechanics Badges Area */}
-                <div
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="w-full min-h-[46px] p-2 bg-white border-2 border-gray-300 rounded-xl flex items-center justify-between gap-2 cursor-pointer hover:border-slate-800 transition-colors"
-                >
-                  <div className="flex flex-wrap gap-1.5 flex-1">
-                    {selectedMechanics.map((name) => (
-                      <span
-                        key={name}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleMechanicSelection(name);
-                        }}
-                        className="inline-flex items-center gap-1.5 bg-slate-900 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-xs group"
-                      >
-                        <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                        {name}
-                        <X className="w-3.5 h-3.5 text-gray-400 group-hover:text-red-400" />
-                      </span>
-                    ))}
-                    {selectedMechanics.length === 0 && (
-                      <span className="text-gray-400 text-xs py-1 px-1">
-                        Select registered mechanic(s)...
-                      </span>
-                    )}
-                  </div>
-                  <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-                </div>
-
-                {/* Searchable Dropdown Popup */}
-                {dropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border-2 border-gray-300 rounded-xl shadow-xl z-50 overflow-hidden">
-                    <div className="p-2 border-b border-gray-200 bg-gray-50 flex items-center gap-2">
-                      <Search className="w-3.5 h-3.5 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search registered staff..."
-                        value={mechSearch}
-                        onChange={(e) => setMechSearch(e.target.value)}
-                        className="w-full bg-transparent text-xs outline-none text-gray-800 font-medium"
-                        autoFocus
-                      />
-                    </div>
-
-                    <div className="max-h-48 overflow-y-auto divide-y divide-gray-100">
-                      {filteredRegisteredMechanics.map((m) => {
-                        const isSelected = selectedMechanics.includes(m.name);
-                        return (
-                          <div
-                            key={m._id}
-                            onClick={() => toggleMechanicSelection(m.name)}
-                            className={`p-2.5 flex items-center justify-between text-xs font-bold cursor-pointer transition-colors ${isSelected
-                                ? 'bg-slate-100 text-slate-900'
-                                : 'hover:bg-gray-50 text-gray-700'
-                              }`}
-                          >
-                            <div>
-                              <p className="font-extrabold">{m.name}</p>
-                              <p className="text-[11px] font-normal text-gray-500">@{m.username}</p>
-                            </div>
-                            {isSelected && <Check className="w-4 h-4 text-[#BC0202] stroke-[3]" />}
-                          </div>
-                        );
-                      })}
-
-                      {filteredRegisteredMechanics.length === 0 && (
-                        <div className="p-4 text-center text-xs text-gray-400 font-medium">
-                          No registered mechanics found. Add mechanics in User Management first.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold transition-colors cursor-pointer border border-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 bg-[#BC0202] hover:bg-[#830000] text-white rounded-xl font-bold shadow-md transition-colors cursor-pointer border border-[#830000]"
-                >
-                  Save Card
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
