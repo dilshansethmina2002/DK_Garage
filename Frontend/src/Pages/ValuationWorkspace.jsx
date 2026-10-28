@@ -150,6 +150,49 @@ const INITIAL_FORM_STATE = {
     }
 };
 
+// Utility function to convert numbers to uppercase words
+const convertNumberToWords = (amount) => {
+    if (!amount) return '';
+
+    const single = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
+    const double = ['TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
+    const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
+    const scale = ['', 'THOUSAND', 'MILLION', 'BILLION'];
+
+    let words = [];
+    let num = Math.floor(amount);
+    let scaleIdx = 0;
+
+    while (num > 0) {
+        let chunk = num % 1000;
+        if (chunk > 0) {
+            let chunkWords = [];
+            if (chunk > 99) {
+                chunkWords.push(single[Math.floor(chunk / 100)] + ' HUNDRED');
+                chunk %= 100;
+            }
+            if (chunk > 9 && chunk < 20) {
+                chunkWords.push(double[chunk - 10]);
+            } else {
+                if (chunk > 19) {
+                    chunkWords.push(tens[Math.floor(chunk / 10)]);
+                    chunk %= 10;
+                }
+                if (chunk > 0) {
+                    chunkWords.push(single[chunk]);
+                }
+            }
+            if (scale[scaleIdx]) {
+                chunkWords.push(scale[scaleIdx]);
+            }
+            words.unshift(chunkWords.join(' '));
+        }
+        num = Math.floor(num / 1000);
+        scaleIdx++;
+    }
+    return words.length > 0 ? words.join(' ') + ' ONLY' : '';
+};
+
 const ValuationWorkspace = () => {
     const { id } = useParams();
     const isEditMode = Boolean(id);
@@ -229,7 +272,6 @@ const ValuationWorkspace = () => {
                     updatedPhotos.engineNoPhoto = res.data.engineNoPhoto || prev.photos.engineNoPhoto;
                 } else if (type === 'vehiclePhotos') {
                     const currentVehiclePhotos = [...(prev.photos.vehiclePhotos || [])];
-                    // Ensure array is long enough to set index 1 directly
                     if (currentVehiclePhotos.length < 2) {
                         currentVehiclePhotos.push(null, null);
                     }
@@ -286,7 +328,6 @@ const ValuationWorkspace = () => {
 
     return (
         <>
-            {/* MAIN WORKSPACE UI (Hidden during printing via print:hidden) */}
             <div className="min-h-screen bg-slate-100/90 p-4 sm:p-6 lg:p-8 font-sans text-slate-900 print:hidden">
                 <div className="max-w-[1600px] mx-auto space-y-6">
 
@@ -557,13 +598,57 @@ const ValuationWorkspace = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="text-xs font-black text-amber-900 uppercase block mb-1">7.0 Market Value (LKR) *</label>
-                                        <input type="number" required value={formData.evaluationTab2.marketValue} onChange={e => handleNestedChange('evaluationTab2', 'marketValue', Number(e.target.value) || 0)} className="w-full p-3 border-2 border-amber-400 bg-white rounded-xl text-base font-black text-slate-950 outline-none" />
-                                        <input type="text" placeholder="Market Value in Words" value={formData.evaluationTab2.marketValueWords} onChange={e => handleNestedChange('evaluationTab2', 'marketValueWords', e.target.value.toUpperCase())} className="w-full p-2 mt-2 border border-amber-300 bg-white/80 rounded-lg text-xs font-bold uppercase" />
+                                        <input
+                                            type="number"
+                                            required
+                                            value={formData.evaluationTab2.marketValue}
+                                            onChange={e => {
+                                                const numValue = Number(e.target.value) || 0;
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    evaluationTab2: {
+                                                        ...prev.evaluationTab2,
+                                                        marketValue: numValue,
+                                                        marketValueWords: convertNumberToWords(numValue)
+                                                    }
+                                                }));
+                                            }}
+                                            className="w-full p-3 border-2 border-amber-400 bg-white rounded-xl text-base font-black text-slate-950 outline-none"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Market Value in Words"
+                                            value={formData.evaluationTab2.marketValueWords}
+                                            onChange={e => handleNestedChange('evaluationTab2', 'marketValueWords', e.target.value.toUpperCase())}
+                                            className="w-full p-2 mt-2 border border-amber-300 bg-white/80 rounded-lg text-xs font-bold uppercase"
+                                        />
                                     </div>
                                     <div>
                                         <label className="text-xs font-black text-amber-900 uppercase block mb-1">8.0 Forced Sale Value (LKR) *</label>
-                                        <input type="number" required value={formData.evaluationTab2.forcedSaleValue} onChange={e => handleNestedChange('evaluationTab2', 'forcedSaleValue', Number(e.target.value) || 0)} className="w-full p-3 border-2 border-amber-400 bg-white rounded-xl text-base font-black text-slate-950 outline-none" />
-                                        <input type="text" placeholder="Forced Sale Value in Words" value={formData.evaluationTab2.forcedSaleValueWords} onChange={e => handleNestedChange('evaluationTab2', 'forcedSaleValueWords', e.target.value.toUpperCase())} className="w-full p-2 mt-2 border border-amber-300 bg-white/80 rounded-lg text-xs font-bold uppercase" />
+                                        <input
+                                            type="number"
+                                            required
+                                            value={formData.evaluationTab2.forcedSaleValue}
+                                            onChange={e => {
+                                                const numValue = Number(e.target.value) || 0;
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    evaluationTab2: {
+                                                        ...prev.evaluationTab2,
+                                                        forcedSaleValue: numValue,
+                                                        forcedSaleValueWords: convertNumberToWords(numValue)
+                                                    }
+                                                }));
+                                            }}
+                                            className="w-full p-3 border-2 border-amber-400 bg-white rounded-xl text-base font-black text-slate-950 outline-none"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Forced Sale Value in Words"
+                                            value={formData.evaluationTab2.forcedSaleValueWords}
+                                            onChange={e => handleNestedChange('evaluationTab2', 'forcedSaleValueWords', e.target.value.toUpperCase())}
+                                            className="w-full p-2 mt-2 border border-amber-300 bg-white/80 rounded-lg text-xs font-bold uppercase"
+                                        />
                                     </div>
                                 </div>
                             </div>
