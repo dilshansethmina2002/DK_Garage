@@ -17,137 +17,59 @@ const TABS = [
 const INITIAL_FORM_STATE = {
     reportNo: '',
     serialNo: '',
-    company: 'AAM',
-    branch: 'GA',
+    company: '',
+    branch: '',
     vehicleTypeCategory: '',
-    contactPerson: 'T.Pradeep Kumarage',
-    telephone: '077-1963949',
-    opinionProvidedTo: 'Sanasa Development Bank PLC',
+    contactPerson: 'K.K Daminda',
+    telephone: '',
+    opinionProvidedTo: '',
     placeOfInspection: 'Galle',
     inspectionDate: new Date().toISOString().split('T')[0],
-    inspectionTime: '09:56 AM',
+    inspectionTime: '',
     convertedDateType: '',
     identification: {
-        registrationNo: '',
-        make: 'MITSUBISHI',
-        model: 'FE635E6R',
-        chassisNo: '',
-        engineNo: '',
-        classification: 'MOTOR LORRY',
-        countryOfOrigin: 'Japan',
-        countryOfUsed: 'Sri Lanka',
-        yearOfManufacture: '2007',
-        dateOfRegistration: '',
-        length: '610.00CM',
-        fuelSystem: 'DI',
-        unladenWeight: '2000.00KG',
-        grossWeight: '4530.00KG',
-        previousOwners: '4',
-        importer: '',
-        currentOwner: '',
-        extraOptions: '',
-        typeOfFuel: 'Diesel',
-        switchKeyNo: '',
-        meterReading: '',
-        dateOfImport: '',
-        dateOfClearing: '',
-        colour: 'White',
-        justLow: '',
-        seatingCapacity: '0',
-        fourWheelDrive: 'No',
-        engineCapacity: '3567.00CC',
-        complianceWithCR: 'Yes',
-        complianceComments: '-'
+        registrationNo: '', make: '', model: '', chassisNo: '', engineNo: '',
+        classification: '', countryOfOrigin: '', countryOfUsed: '', yearOfManufacture: '',
+        dateOfRegistration: '', length: '', fuelSystem: '', unladenWeight: '',
+        grossWeight: '', previousOwners: '', importer: '', currentOwner: '', extraOptions: '',
+        typeOfFuel: '', switchKeyNo: '', meterReading: '', dateOfImport: '', dateOfClearing: '',
+        colour: '', justLow: '', seatingCapacity: '', fourWheelDrive: '', engineCapacity: '',
+        complianceWithCR: '', complianceComments: ''
     },
     technical: {
         transmission: {
-            gearBoxType: 'Manual',
-            gearBoxCondition: 'Fair',
-            clutchType: 'Applicable',
-            clutchCondition: 'Good',
-            shafting: 'Good',
-            differential: 'Fair',
-            gearSelection: 'Good'
+            gearBoxType: '', gearBoxCondition: '', clutchType: '',
+            clutchCondition: '', shafting: '', differential: '', gearSelection: ''
         },
-        suspension: { front: 'Fair', rear: 'Fair' },
+        suspension: { front: '', rear: '' },
         brakes: {
-            footBrakesType: 'Hydraulic',
-            footBrakesCondition: 'Good',
-            parkingBrakes: 'Fair'
+            footBrakesType: '', footBrakesCondition: '', parkingBrakes: ''
         },
-        steering: { type: 'Power', condition: 'Good' },
-        chassisCondition: 'Good',
-        bodyCondition: 'Good',
-        specialFeatures: '',
-        engine: {
-            condition: 'Fair',
-            status: 'Original',
-            overhaulDoneOn: '',
-            replacedOn: ''
-        },
+        steering: { type: '', condition: '' },
+        chassisCondition: '', bodyCondition: '', specialFeatures: '',
+        engine: { condition: '', status: '', overhaulDoneOn: '', replacedOn: '' },
         tyres: {
-            front: { size: '700/16', conditionPercent: '60%' },
-            rear: { size: '700/16', conditionPercent: '70%' },
-            spare: { size: '700/16', conditionPercent: '50%' },
-            wheels: 'Normal'
+            front: { size: '', conditionPercent: '' },
+            rear: { size: '', conditionPercent: '' },
+            spare: { size: '', conditionPercent: '' },
+            wheels: ''
         },
         electricalSystem: {
-            starter: 'Functioning',
-            wipers: 'Functioning',
-            horn: 'Functioning',
-            lights: 'Functioning',
-            meters: 'Functioning',
-            alternator: 'Functioning'
+            starter: '', wipers: '', horn: '', lights: '', meters: '', alternator: ''
         },
-        options: {
-            powerShutters: '-',
-            powerMirrors: '-',
-            airConditioner: '-'
-        }
+        options: { powerShutters: '', powerMirrors: '', airConditioner: '' }
     },
     evaluationTab2: {
-        roadTest: {
-            doneOn: 'YES',
-            notDoneBecause: '-',
-            averageFuelConsumption: '6'
-        },
-        majorRepairs: {
-            neededWithinYear: '-',
-            bodyPartsReplaced: '-',
-            accidents: '-',
-            writeOffByInsurers: '-',
-            comments: '-'
-        },
-        maintenance: {
-            mechanical: 'Fair',
-            body: 'Fair',
-            internalTrim: 'Viny'
-        },
-        availabilityOfSpares: {
-            bodyParts: 'Available',
-            engineParts: 'Available',
-            accessories: 'Available'
-        },
-        doors: '2',
-        roofType: 'Flat',
-        bodyType: 'Open',
-        generalCondition: 'Fair',
-        batteries: '1',
-        impactOnGovPolicies: '-',
-        complianceWithEnvRegulations: '-',
-        comments: '-',
-        marketValue: 5500000,
-        marketValueWords: 'FIVE MILLION FIVE HUNDRED THOUSAND ONLY',
-        forcedSaleValue: 5000000,
-        forcedSaleValueWords: 'FIVE MILLION ONLY',
-        travelingCharge: 0,
-        valuationCharge: 0
+        roadTest: { doneOn: '', notDoneBecause: '', averageFuelConsumption: '' },
+        majorRepairs: { neededWithinYear: '', bodyPartsReplaced: '', accidents: '', writeOffByInsurers: '', comments: '' },
+        maintenance: { mechanical: '', body: '', internalTrim: '' },
+        availabilityOfSpares: { bodyParts: '', engineParts: '', accessories: '' },
+        doors: '', roofType: '', bodyType: '', generalCondition: '', batteries: '',
+        impactOnGovPolicies: '', complianceWithEnvRegulations: '', comments: '',
+        marketValue: '', marketValueWords: '', forcedSaleValue: '', forcedSaleValueWords: '',
+        travelingCharge: 0, valuationCharge: 0
     },
-    photos: {
-        chassisNoPhoto: '',
-        engineNoPhoto: '',
-        vehiclePhotos: []
-    }
+    photos: { chassisNoPhoto: '', engineNoPhoto: '', vehiclePhotos: [] }
 };
 
 // Utility function to convert numbers to uppercase words
@@ -328,6 +250,145 @@ const ValuationWorkspace = () => {
 
     return (
         <>
+            {/* DATALISTS for Combo Boxes (Hidden from view, used for dropdown suggestions) */}
+            <datalist id="make-options">
+                <option value="TOYOTA" />
+                <option value="MITSUBISHI" />
+                <option value="NISSAN" />
+                <option value="HONDA" />
+                <option value="SUZUKI" />
+                <option value="MAZDA" />
+                <option value="ISUZU" />
+                <option value="TATA" />
+                <option value="LEYLAND" />
+                <option value="MAHINDRA" />
+                <option value="BAJAJ" />
+                <option value="TVS" />
+            </datalist>
+
+            <datalist id="classification-options">
+                <option value="MOTOR CAR" />
+                <option value="MOTOR CYCLE" />
+                <option value="MOTOR LORRY" />
+                <option value="DUAL PURPOSE VEHICLE" />
+                <option value="THREE WHEELER" />
+                <option value="TRACTOR" />
+            </datalist>
+
+            <datalist id="country-options">
+                <option value="Japan" />
+                <option value="Sri Lanka" />
+                <option value="India" />
+                <option value="UK" />
+                <option value="China" />
+                <option value="South Korea" />
+                <option value="Germany" />
+            </datalist>
+
+            <datalist id="fuel-type-options">
+                <option value="Diesel" />
+                <option value="Petrol" />
+                <option value="Hybrid" />
+                <option value="Electric" />
+            </datalist>
+
+            <datalist id="fuel-system-options">
+                <option value="DI" />
+                <option value="EFI" />
+                <option value="Carburetor" />
+                <option value="CRDi" />
+            </datalist>
+
+            <datalist id="colour-options">
+                <option value="White" />
+                <option value="Black" />
+                <option value="Silver" />
+                <option value="Grey" />
+                <option value="Red" />
+                <option value="Blue" />
+                <option value="Green" />
+            </datalist>
+
+            <datalist id="condition-options">
+                <option value="Excellent" />
+                <option value="Good" />
+                <option value="Fair" />
+                <option value="Poor" />
+                <option value="Applicable" />
+                <option value="Not Applicable" />
+            </datalist>
+
+            <datalist id="functioning-options">
+                <option value="Functioning" />
+                <option value="Not Functioning" />
+                <option value="Needs Repair" />
+                <option value="-" />
+            </datalist>
+
+            <datalist id="availability-options">
+                <option value="Available" />
+                <option value="Readily Available" />
+                <option value="Scarce" />
+                <option value="Import Required" />
+            </datalist>
+
+            <datalist id="yes-no-options">
+                <option value="Yes" />
+                <option value="No" />
+                <option value="YES" />
+                <option value="NO" />
+                <option value="-" />
+            </datalist>
+
+            <datalist id="body-type-options">
+                <option value="Open" />
+                <option value="Closed" />
+                <option value="Saloon" />
+                <option value="Hatchback" />
+                <option value="SUV" />
+                <option value="Station Wagon" />
+            </datalist>
+
+            <datalist id="roof-type-options">
+                <option value="Flat" />
+                <option value="High Roof" />
+                <option value="Standard" />
+                <option value="Canopy" />
+                <option value="Open" />
+            </datalist>
+
+            <datalist id="transmission-type-options">
+                <option value="Manual" />
+                <option value="Automatic" />
+                <option value="CVT" />
+                <option value="AMT" />
+            </datalist>
+
+            <datalist id="steering-type-options">
+                <option value="Power" />
+                <option value="Manual" />
+                <option value="EPS" />
+            </datalist>
+
+            <datalist id="brakes-type-options">
+                <option value="Hydraulic" />
+                <option value="Air" />
+                <option value="ABS" />
+            </datalist>
+
+            <datalist id="engine-status-options">
+                <option value="Original" />
+                <option value="Replaced" />
+                <option value="Overhauled" />
+            </datalist>
+
+            <datalist id="wheels-options">
+                <option value="Normal" />
+                <option value="Alloy" />
+                <option value="Steel" />
+            </datalist>
+
+
             <div className="min-h-screen bg-slate-100/90 p-4 sm:p-6 lg:p-8 font-sans text-slate-900 print:hidden">
                 <div className="max-w-[1600px] mx-auto space-y-6">
 
@@ -453,39 +514,70 @@ const ValuationWorkspace = () => {
                         <div className="bg-white p-6 rounded-b-2xl border-2 border-t-0 border-slate-300 shadow-xs space-y-5">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.1 Registration No *</label><input type="text" value={formData.identification.registrationNo} onChange={e => handleNestedChange('identification', 'registrationNo', e.target.value.toUpperCase())} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.2 Make *</label><input type="text" value={formData.identification.make} onChange={e => handleNestedChange('identification', 'make', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
+
+                                {/* Make (Combobox) */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.2 Make *</label>
+                                    <input type="text" list="make-options" value={formData.identification.make} onChange={e => handleNestedChange('identification', 'make', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
+                                </div>
+
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.3 Model *</label><input type="text" value={formData.identification.model} onChange={e => handleNestedChange('identification', 'model', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.4 Chassis No *</label><input type="text" value={formData.identification.chassisNo} onChange={e => handleNestedChange('identification', 'chassisNo', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.5 Engine No *</label><input type="text" value={formData.identification.engineNo} onChange={e => handleNestedChange('identification', 'engineNo', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.6 Classification</label><input type="text" value={formData.identification.classification} onChange={e => handleNestedChange('identification', 'classification', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.7 Country of Origin</label><input type="text" value={formData.identification.countryOfOrigin} onChange={e => handleNestedChange('identification', 'countryOfOrigin', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.8 Country of Used</label><input type="text" value={formData.identification.countryOfUsed} onChange={e => handleNestedChange('identification', 'countryOfUsed', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
+
+                                {/* Classification (Combobox) */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.6 Classification</label>
+                                    <input type="text" list="classification-options" value={formData.identification.classification} onChange={e => handleNestedChange('identification', 'classification', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
+                                </div>
+
+                                {/* Country of Origin (Combobox) */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.7 Country of Origin</label>
+                                    <input type="text" list="country-options" value={formData.identification.countryOfOrigin} onChange={e => handleNestedChange('identification', 'countryOfOrigin', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
+                                </div>
+
+                                {/* Country of Used (Combobox) */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.8 Country of Used</label>
+                                    <input type="text" list="country-options" value={formData.identification.countryOfUsed} onChange={e => handleNestedChange('identification', 'countryOfUsed', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
+                                </div>
+
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.9 Year of Manufacture</label><input type="text" value={formData.identification.yearOfManufacture} onChange={e => handleNestedChange('identification', 'yearOfManufacture', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.10 Date of Registration</label><input type="text" value={formData.identification.dateOfRegistration} onChange={e => handleNestedChange('identification', 'dateOfRegistration', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.11 Length</label><input type="text" value={formData.identification.length} onChange={e => handleNestedChange('identification', 'length', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.12 Fuel System</label><input type="text" value={formData.identification.fuelSystem} onChange={e => handleNestedChange('identification', 'fuelSystem', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
+
+                                {/* Fuel System (Combobox) */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.12 Fuel System</label>
+                                    <input type="text" list="fuel-system-options" value={formData.identification.fuelSystem} onChange={e => handleNestedChange('identification', 'fuelSystem', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
+                                </div>
+
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.13 Unladen Weight</label><input type="text" value={formData.identification.unladenWeight} onChange={e => handleNestedChange('identification', 'unladenWeight', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.14 Gross Weight</label><input type="text" value={formData.identification.grossWeight} onChange={e => handleNestedChange('identification', 'grossWeight', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
+
+                                {/* Type of Fuel (Combobox) */}
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.15 Type of Fuel</label>
-                                    <select value={formData.identification.typeOfFuel} onChange={e => handleNestedChange('identification', 'typeOfFuel', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none">
-                                        <option value="Diesel">Diesel</option>
-                                        <option value="Petrol">Petrol</option>
-                                        <option value="Hybrid">Hybrid</option>
-                                        <option value="Electric">Electric</option>
-                                    </select>
+                                    <input type="text" list="fuel-type-options" value={formData.identification.typeOfFuel} onChange={e => handleNestedChange('identification', 'typeOfFuel', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
                                 </div>
+
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.18 Meter Reading</label><input type="text" value={formData.identification.meterReading} onChange={e => handleNestedChange('identification', 'meterReading', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.21 Colour</label><input type="text" value={formData.identification.colour} onChange={e => handleNestedChange('identification', 'colour', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
+
+                                {/* Colour (Combobox) */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.21 Colour</label>
+                                    <input type="text" list="colour-options" value={formData.identification.colour} onChange={e => handleNestedChange('identification', 'colour', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
+                                </div>
+
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.25 Engine Capacity</label><input type="text" value={formData.identification.engineCapacity} onChange={e => handleNestedChange('identification', 'engineCapacity', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.26 Previous Owners</label><input type="text" value={formData.identification.previousOwners} onChange={e => handleNestedChange('identification', 'previousOwners', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.28 Current Owner Name</label><input type="text" value={formData.identification.currentOwner} onChange={e => handleNestedChange('identification', 'currentOwner', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
+
+                                {/* Compliance with CR (Combobox) */}
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.30 Compliance with CR</label>
-                                    <select value={formData.identification.complianceWithCR} onChange={e => handleNestedChange('identification', 'complianceWithCR', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none">
-                                        <option value="Yes">Yes</option>
-                                        <option value="No">No</option>
-                                    </select>
+                                    <input type="text" list="yes-no-options" value={formData.identification.complianceWithCR} onChange={e => handleNestedChange('identification', 'complianceWithCR', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
                                 </div>
                             </div>
                         </div>
@@ -500,29 +592,29 @@ const ValuationWorkspace = () => {
                                     <div>
                                         <label className="text-[11px] font-bold text-slate-600 block mb-1">5.1.1 Gear Box</label>
                                         <div className="grid grid-cols-2 gap-2">
-                                            <input type="text" value={formData.technical.transmission.gearBoxType} onChange={e => handleDeepNestedChange('technical', 'transmission', 'gearBoxType', e.target.value)} placeholder="Type" className="p-2 border rounded-lg text-xs font-bold" />
-                                            <input type="text" value={formData.technical.transmission.gearBoxCondition} onChange={e => handleDeepNestedChange('technical', 'transmission', 'gearBoxCondition', e.target.value)} placeholder="Condition" className="p-2 border rounded-lg text-xs font-bold" />
+                                            <input type="text" list="transmission-type-options" value={formData.technical.transmission.gearBoxType} onChange={e => handleDeepNestedChange('technical', 'transmission', 'gearBoxType', e.target.value)} placeholder="Type" className="p-2 border rounded-lg text-xs font-bold" />
+                                            <input type="text" list="condition-options" value={formData.technical.transmission.gearBoxCondition} onChange={e => handleDeepNestedChange('technical', 'transmission', 'gearBoxCondition', e.target.value)} placeholder="Condition" className="p-2 border rounded-lg text-xs font-bold" />
                                         </div>
                                     </div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.1.2 Clutch</label><input type="text" value={formData.technical.transmission.clutchCondition} onChange={e => handleDeepNestedChange('technical', 'transmission', 'clutchCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.1.3 Shafting</label><input type="text" value={formData.technical.transmission.shafting} onChange={e => handleDeepNestedChange('technical', 'transmission', 'shafting', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.1.4 Differential</label><input type="text" value={formData.technical.transmission.differential} onChange={e => handleDeepNestedChange('technical', 'transmission', 'differential', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.1.2 Clutch</label><input type="text" list="condition-options" value={formData.technical.transmission.clutchCondition} onChange={e => handleDeepNestedChange('technical', 'transmission', 'clutchCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.1.3 Shafting</label><input type="text" list="condition-options" value={formData.technical.transmission.shafting} onChange={e => handleDeepNestedChange('technical', 'transmission', 'shafting', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.1.4 Differential</label><input type="text" list="condition-options" value={formData.technical.transmission.differential} onChange={e => handleDeepNestedChange('technical', 'transmission', 'differential', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
                                 </div>
 
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                                     <h4 className="text-xs font-black uppercase text-slate-900 border-b pb-1">5.2 Suspension & 5.3 Brakes</h4>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.2.1 Front Suspension</label><input type="text" value={formData.technical.suspension.front} onChange={e => handleDeepNestedChange('technical', 'suspension', 'front', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.2.2 Rear Suspension</label><input type="text" value={formData.technical.suspension.rear} onChange={e => handleDeepNestedChange('technical', 'suspension', 'rear', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.3.1 Foot Brakes</label><input type="text" value={formData.technical.brakes.footBrakesCondition} onChange={e => handleDeepNestedChange('technical', 'brakes', 'footBrakesCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.3.2 Parking Brakes</label><input type="text" value={formData.technical.brakes.parkingBrakes} onChange={e => handleDeepNestedChange('technical', 'brakes', 'parkingBrakes', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.2.1 Front Suspension</label><input type="text" list="condition-options" value={formData.technical.suspension.front} onChange={e => handleDeepNestedChange('technical', 'suspension', 'front', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.2.2 Rear Suspension</label><input type="text" list="condition-options" value={formData.technical.suspension.rear} onChange={e => handleDeepNestedChange('technical', 'suspension', 'rear', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.3.1 Foot Brakes</label><input type="text" list="condition-options" value={formData.technical.brakes.footBrakesCondition} onChange={e => handleDeepNestedChange('technical', 'brakes', 'footBrakesCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.3.2 Parking Brakes</label><input type="text" list="condition-options" value={formData.technical.brakes.parkingBrakes} onChange={e => handleDeepNestedChange('technical', 'brakes', 'parkingBrakes', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
                                 </div>
 
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                                     <h4 className="text-xs font-black uppercase text-slate-900 border-b pb-1">5.4 - 5.6 Body & Steering</h4>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.4 Steering</label><input type="text" value={formData.technical.steering.condition} onChange={e => handleDeepNestedChange('technical', 'steering', 'condition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.5 Chassis Condition</label><input type="text" value={formData.technical.chassisCondition} onChange={e => handleNestedChange('technical', 'chassisCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.6 Body Condition</label><input type="text" value={formData.technical.bodyCondition} onChange={e => handleNestedChange('technical', 'bodyCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.8 Engine Condition</label><input type="text" value={formData.technical.engine.condition} onChange={e => handleDeepNestedChange('technical', 'engine', 'condition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.4 Steering</label><input type="text" list="condition-options" value={formData.technical.steering.condition} onChange={e => handleDeepNestedChange('technical', 'steering', 'condition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.5 Chassis Condition</label><input type="text" list="condition-options" value={formData.technical.chassisCondition} onChange={e => handleNestedChange('technical', 'chassisCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.6 Body Condition</label><input type="text" list="condition-options" value={formData.technical.bodyCondition} onChange={e => handleNestedChange('technical', 'bodyCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">5.8 Engine Condition</label><input type="text" list="condition-options" value={formData.technical.engine.condition} onChange={e => handleDeepNestedChange('technical', 'engine', 'condition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
                                 </div>
                             </div>
 
@@ -532,27 +624,27 @@ const ValuationWorkspace = () => {
                                     <div>
                                         <label className="text-[11px] font-bold text-slate-600 block mb-1">Front Tyres</label>
                                         <div className="flex gap-2">
-                                            <input type="text" value={formData.technical.tyres.front.size} onChange={e => handleDeepNestedChange('technical', 'tyres', 'front', { ...formData.technical.tyres.front, size: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" />
-                                            <input type="text" value={formData.technical.tyres.front.conditionPercent} onChange={e => handleDeepNestedChange('technical', 'tyres', 'front', { ...formData.technical.tyres.front, conditionPercent: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" />
+                                            <input type="text" value={formData.technical.tyres.front.size} onChange={e => handleDeepNestedChange('technical', 'tyres', 'front', { ...formData.technical.tyres.front, size: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" placeholder="Size" />
+                                            <input type="text" value={formData.technical.tyres.front.conditionPercent} onChange={e => handleDeepNestedChange('technical', 'tyres', 'front', { ...formData.technical.tyres.front, conditionPercent: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" placeholder="Wear %" />
                                         </div>
                                     </div>
                                     <div>
                                         <label className="text-[11px] font-bold text-slate-600 block mb-1">Rear Tyres</label>
                                         <div className="flex gap-2">
-                                            <input type="text" value={formData.technical.tyres.rear.size} onChange={e => handleDeepNestedChange('technical', 'tyres', 'rear', { ...formData.technical.tyres.rear, size: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" />
-                                            <input type="text" value={formData.technical.tyres.rear.conditionPercent} onChange={e => handleDeepNestedChange('technical', 'tyres', 'rear', { ...formData.technical.tyres.rear, conditionPercent: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" />
+                                            <input type="text" value={formData.technical.tyres.rear.size} onChange={e => handleDeepNestedChange('technical', 'tyres', 'rear', { ...formData.technical.tyres.rear, size: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" placeholder="Size" />
+                                            <input type="text" value={formData.technical.tyres.rear.conditionPercent} onChange={e => handleDeepNestedChange('technical', 'tyres', 'rear', { ...formData.technical.tyres.rear, conditionPercent: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" placeholder="Wear %" />
                                         </div>
                                     </div>
                                     <div>
                                         <label className="text-[11px] font-bold text-slate-600 block mb-1">Spare Tyre</label>
                                         <div className="flex gap-2">
-                                            <input type="text" value={formData.technical.tyres.spare.size} onChange={e => handleDeepNestedChange('technical', 'tyres', 'spare', { ...formData.technical.tyres.spare, size: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" />
-                                            <input type="text" value={formData.technical.tyres.spare.conditionPercent} onChange={e => handleDeepNestedChange('technical', 'tyres', 'spare', { ...formData.technical.tyres.spare, conditionPercent: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" />
+                                            <input type="text" value={formData.technical.tyres.spare.size} onChange={e => handleDeepNestedChange('technical', 'tyres', 'spare', { ...formData.technical.tyres.spare, size: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" placeholder="Size" />
+                                            <input type="text" value={formData.technical.tyres.spare.conditionPercent} onChange={e => handleDeepNestedChange('technical', 'tyres', 'spare', { ...formData.technical.tyres.spare, conditionPercent: e.target.value })} className="w-1/2 p-2 border rounded-lg text-xs font-bold" placeholder="Wear %" />
                                         </div>
                                     </div>
                                     <div>
                                         <label className="text-[11px] font-bold text-slate-600 block mb-1">Wheels</label>
-                                        <input type="text" value={formData.technical.tyres.wheels} onChange={e => handleDeepNestedChange('technical', 'tyres', 'wheels', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" />
+                                        <input type="text" list="wheels-options" value={formData.technical.tyres.wheels} onChange={e => handleDeepNestedChange('technical', 'tyres', 'wheels', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" />
                                     </div>
                                 </div>
                             </div>
@@ -563,7 +655,7 @@ const ValuationWorkspace = () => {
                                     {['starter', 'wipers', 'horn', 'lights', 'meters', 'alternator'].map(elem => (
                                         <div key={elem}>
                                             <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">{elem}</label>
-                                            <input type="text" value={formData.technical.electricalSystem[elem]} onChange={e => handleDeepNestedChange('technical', 'electricalSystem', elem, e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" />
+                                            <input type="text" list="functioning-options" value={formData.technical.electricalSystem[elem]} onChange={e => handleDeepNestedChange('technical', 'electricalSystem', elem, e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" />
                                         </div>
                                     ))}
                                 </div>
@@ -577,17 +669,37 @@ const ValuationWorkspace = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                                     <h4 className="text-xs font-black uppercase text-slate-900 border-b pb-1">2.0 Road Test</h4>
-                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Road Test Done On</label><input type="text" value={formData.evaluationTab2.roadTest.doneOn} onChange={e => handleDeepNestedChange('evaluationTab2', 'roadTest', 'doneOn', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Road Test Done On</label><input type="text" list="yes-no-options" value={formData.evaluationTab2.roadTest.doneOn} onChange={e => handleDeepNestedChange('evaluationTab2', 'roadTest', 'doneOn', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
                                     <div><label className="text-[11px] font-bold text-slate-600 block mb-1">2.1 Avg Fuel Consumption</label><input type="text" value={formData.evaluationTab2.roadTest.averageFuelConsumption} onChange={e => handleDeepNestedChange('evaluationTab2', 'roadTest', 'averageFuelConsumption', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
                                 </div>
 
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                                     <h4 className="text-xs font-black uppercase text-slate-900 border-b pb-1">5.12 Maintenance</h4>
                                     <div className="grid grid-cols-3 gap-2">
-                                        <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Mechanical</label><input type="text" value={formData.evaluationTab2.maintenance.mechanical} onChange={e => handleDeepNestedChange('evaluationTab2', 'maintenance', 'mechanical', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                        <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Body</label><input type="text" value={formData.evaluationTab2.maintenance.body} onChange={e => handleDeepNestedChange('evaluationTab2', 'maintenance', 'body', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
-                                        <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Internal Trim</label><input type="text" value={formData.evaluationTab2.maintenance.internalTrim} onChange={e => handleDeepNestedChange('evaluationTab2', 'maintenance', 'internalTrim', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                        <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Mechanical</label><input type="text" list="condition-options" value={formData.evaluationTab2.maintenance.mechanical} onChange={e => handleDeepNestedChange('evaluationTab2', 'maintenance', 'mechanical', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                        <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Body</label><input type="text" list="condition-options" value={formData.evaluationTab2.maintenance.body} onChange={e => handleDeepNestedChange('evaluationTab2', 'maintenance', 'body', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                        <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Internal Trim</label><input type="text" list="condition-options" value={formData.evaluationTab2.maintenance.internalTrim} onChange={e => handleDeepNestedChange('evaluationTab2', 'maintenance', 'internalTrim', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Additional Tab 3 Details */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                                <h4 className="text-xs font-black uppercase text-slate-900 border-b pb-1">Body & Structure</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Doors</label><input type="text" value={formData.evaluationTab2.doors} onChange={e => handleNestedChange('evaluationTab2', 'doors', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Roof Type</label><input type="text" list="roof-type-options" value={formData.evaluationTab2.roofType} onChange={e => handleNestedChange('evaluationTab2', 'roofType', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Body Type</label><input type="text" list="body-type-options" value={formData.evaluationTab2.bodyType} onChange={e => handleNestedChange('evaluationTab2', 'bodyType', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">General Condition</label><input type="text" list="condition-options" value={formData.evaluationTab2.generalCondition} onChange={e => handleNestedChange('evaluationTab2', 'generalCondition', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                                <h4 className="text-xs font-black uppercase text-slate-900 border-b pb-1">4.0 Availability of Spares</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Body Parts</label><input type="text" list="availability-options" value={formData.evaluationTab2.availabilityOfSpares.bodyParts} onChange={e => handleDeepNestedChange('evaluationTab2', 'availabilityOfSpares', 'bodyParts', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Engine Parts</label><input type="text" list="availability-options" value={formData.evaluationTab2.availabilityOfSpares.engineParts} onChange={e => handleDeepNestedChange('evaluationTab2', 'availabilityOfSpares', 'engineParts', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
+                                    <div><label className="text-[11px] font-bold text-slate-600 block mb-1">Accessories</label><input type="text" list="availability-options" value={formData.evaluationTab2.availabilityOfSpares.accessories} onChange={e => handleDeepNestedChange('evaluationTab2', 'availabilityOfSpares', 'accessories', e.target.value)} className="w-full p-2 border rounded-lg text-xs font-bold" /></div>
                                 </div>
                             </div>
 

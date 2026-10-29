@@ -17,7 +17,7 @@ const ValuationPrintView = ({ data }) => {
   return (
     // Top-level container forces print mode styling
     <div className="hidden print:block print:absolute print:top-0 print:left-0 print:w-full print:bg-white print:z-[9999] text-black font-sans mx-auto bg-white">
-      
+
       {/* Strip browser defaults and set strict A4 constraints */}
       <style type="text/css" media="print">
         {`
@@ -27,20 +27,19 @@ const ValuationPrintView = ({ data }) => {
       </style>
 
       {/* ======================= PAGE 1 ======================= */}
-      <div 
-        className="relative flex flex-col box-border overflow-hidden print:page-break-after-always bg-white" 
+      <div
+        className="relative flex flex-col box-border overflow-hidden print:page-break-after-always bg-white"
         style={{ width: '210mm', height: '297mm', margin: '0 auto' }}
       >
         {/* Letterhead as a full-page background (Behind content) */}
-        <img 
-          src={letterheadBg} 
-          alt="Letterhead Background" 
-          className="absolute top-0 left-0 w-full h-full object-cover z-0 opacity-100" 
+        <img
+          src={letterheadBg}
+          alt="Letterhead Background"
+          className="absolute top-0 left-0 w-full h-full object-cover z-0 opacity-100"
         />
 
         {/* Foreground Content Wrapper (z-10 keeps it above the background) */}
         <div className="px-8 pb-4 relative z-10 flex flex-col h-full" style={{ paddingTop: '58mm' }}>
-          
 
           <h3 className="text-center text-[12px] font-bold underline mb-3">VEHICLE INSPECTION AND VALUATION REPORT</h3>
 
@@ -116,7 +115,7 @@ const ValuationPrintView = ({ data }) => {
               <div className="w-1/2"><DottedRow label="2.1 Average Fuel Consumption per litre" value={data.evaluationTab2?.roadTest?.averageFuelConsumption} labelWidth="w-56" /></div>
               <div className="w-1/2"><DottedRow label="3.0 Impact on Gov Policies" value={data.evaluationTab2?.impactOnGovPolicies} labelWidth="w-40" /></div>
             </div>
-            
+
             <div className="flex gap-4 mt-1.5 font-bold">
               <span className="w-32">4.0 Availability of spares</span>
               <span>Body Parts : {data.evaluationTab2?.availabilityOfSpares?.bodyParts}</span>
@@ -125,13 +124,7 @@ const ValuationPrintView = ({ data }) => {
             </div>
           </div>
 
-          {/* 
-            Photos placed at the bottom.
-            (Untouched as requested: Exact 20mm height, bg-white to block background bleed)
-          */}
           <div className="mt-auto pt-2 pb-2">
-            
-            {/* Chassis and Engine No - Exactly 2cm (20mm) */}
             <div className="flex gap-4 mb-3">
               <div className="w-1/2">
                 <p className="text-[10px] font-bold mb-0.5">Chassis No</p>
@@ -151,77 +144,76 @@ const ValuationPrintView = ({ data }) => {
               </div>
             </div>
 
-            {/* Vehicle Photos */}
             <div className="flex gap-4">
-               <div className="w-1/2 h-[45mm] border-[1.5px] border-gray-300 bg-white flex items-center justify-center overflow-hidden p-0.5">
-                  {data.photos?.vehiclePhotos?.[0] ? (
-                    <img src={data.photos.vehiclePhotos[0]} className="max-w-full max-h-full object-contain" alt="Vehicle Front" />
-                  ) : null}
-                </div>
-                <div className="w-1/2 h-[45mm] border-[1.5px] border-gray-300 bg-white flex items-center justify-center overflow-hidden p-0.5">
-                  {data.photos?.vehiclePhotos?.[1] ? (
-                    <img src={data.photos.vehiclePhotos[1]} className="max-w-full max-h-full object-contain" alt="Vehicle Rear" />
-                  ) : null}
-                </div>
+              <div className="w-1/2 h-[45mm] border-[1.5px] border-gray-300 bg-white flex items-center justify-center overflow-hidden p-0.5">
+                {data.photos?.vehiclePhotos?.[0] ? (
+                  <img src={data.photos.vehiclePhotos[0]} className="max-w-full max-h-full object-contain" alt="Vehicle Front" />
+                ) : null}
+              </div>
+              <div className="w-1/2 h-[45mm] border-[1.5px] border-gray-300 bg-white flex items-center justify-center overflow-hidden p-0.5">
+                {data.photos?.vehiclePhotos?.[1] ? (
+                  <img src={data.photos.vehiclePhotos[1]} className="max-w-full max-h-full object-contain" alt="Vehicle Rear" />
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* ======================= PAGE 2 ======================= */}
-      <div 
-        className="relative flex flex-col bg-white box-border overflow-hidden px-8 py-10 print:page-break-after-always" 
+      <div
+        className="relative flex flex-col bg-white box-border overflow-hidden px-8 pt-6 pb-4 print:page-break-after-always"
         style={{ width: '210mm', height: '297mm', margin: '0 auto' }}
       >
-        <h4 className="text-[11px] font-bold mb-3 uppercase">5.0 TECHNICAL EVALUATION</h4>
-        
+        <h4 className="text-[11px] font-bold mb-2 uppercase">5.0 TECHNICAL EVALUATION</h4>
+
         <div className="grid grid-cols-2 gap-x-8 text-[10px] pl-2">
           <div>
             <h5 className="font-bold">5.1 Transmission</h5>
             <div className="pl-3">
-               <div className="flex"><div className="w-1/2"><DottedRow label="5.1.1 Gear box" value={data.technical?.transmission?.gearBoxType} labelWidth="w-24" /></div><div className="w-1/2 pl-1"><DottedRow label="" value={data.technical?.transmission?.gearBoxCondition} labelWidth="w-0" /></div></div>
-               <div className="flex"><div className="w-1/2"><DottedRow label="5.1.2 Clutch" value={data.technical?.transmission?.clutchType} labelWidth="w-24"/></div><div className="w-1/2 pl-1"><DottedRow label="" value={data.technical?.transmission?.clutchCondition} labelWidth="w-0"/></div></div>
-               <DottedRow label="5.1.3 Shafting" value={data.technical?.transmission?.shafting} labelWidth="w-24"/>
-               <DottedRow label="5.1.4 Differential" value={data.technical?.transmission?.differential} labelWidth="w-24"/>
-               <DottedRow label="5.1.5 Gear selection" value={data.technical?.transmission?.gearSelection} labelWidth="w-24"/>
+              <div className="flex"><div className="w-1/2"><DottedRow label="5.1.1 Gear box" value={data.technical?.transmission?.gearBoxType} labelWidth="w-24" /></div><div className="w-1/2 pl-1"><DottedRow label="" value={data.technical?.transmission?.gearBoxCondition} labelWidth="w-0" /></div></div>
+              <div className="flex"><div className="w-1/2"><DottedRow label="5.1.2 Clutch" value={data.technical?.transmission?.clutchType} labelWidth="w-24" /></div><div className="w-1/2 pl-1"><DottedRow label="" value={data.technical?.transmission?.clutchCondition} labelWidth="w-0" /></div></div>
+              <DottedRow label="5.1.3 Shafting" value={data.technical?.transmission?.shafting} labelWidth="w-24" />
+              <DottedRow label="5.1.4 Differential" value={data.technical?.transmission?.differential} labelWidth="w-24" />
+              <DottedRow label="5.1.5 Gear selection" value={data.technical?.transmission?.gearSelection} labelWidth="w-24" />
             </div>
 
             <h5 className="font-bold mt-2">5.2 Suspension</h5>
             <div className="pl-3">
-               <DottedRow label="5.2.1 Front" value={data.technical?.suspension?.front} labelWidth="w-24"/>
-               <DottedRow label="5.2.2 Rear" value={data.technical?.suspension?.rear} labelWidth="w-24"/>
+              <DottedRow label="5.2.1 Front" value={data.technical?.suspension?.front} labelWidth="w-24" />
+              <DottedRow label="5.2.2 Rear" value={data.technical?.suspension?.rear} labelWidth="w-24" />
             </div>
 
             <h5 className="font-bold mt-2">5.3 Brakes</h5>
             <div className="pl-3 flex">
-               <div className="w-1/2"><DottedRow label="5.3.1 Foot Brakes" value={data.technical?.brakes?.footBrakesType} labelWidth="w-28"/></div>
-               <div className="w-1/2 pl-1"><DottedRow label="" value={data.technical?.brakes?.footBrakesCondition} labelWidth="w-0"/></div>
+              <div className="w-1/2"><DottedRow label="5.3.1 Foot Brakes" value={data.technical?.brakes?.footBrakesType} labelWidth="w-28" /></div>
+              <div className="w-1/2 pl-1"><DottedRow label="" value={data.technical?.brakes?.footBrakesCondition} labelWidth="w-0" /></div>
             </div>
             <div className="pl-3">
-               <DottedRow label="5.3.2 Parking Brakes" value={data.technical?.brakes?.parkingBrakes} labelWidth="w-28"/>
+              <DottedRow label="5.3.2 Parking Brakes" value={data.technical?.brakes?.parkingBrakes} labelWidth="w-28" />
             </div>
 
             <div className="mt-2 flex pl-1">
-              <div className="w-1/2"><DottedRow label={<span className="font-bold">5.4 Steering</span>} value={data.technical?.steering?.type} labelWidth="w-28"/></div>
-              <div className="w-1/2 pl-1"><DottedRow label="" value={data.technical?.steering?.condition} labelWidth="w-0"/></div>
+              <div className="w-1/2"><DottedRow label={<span className="font-bold">5.4 Steering</span>} value={data.technical?.steering?.type} labelWidth="w-28" /></div>
+              <div className="w-1/2 pl-1"><DottedRow label="" value={data.technical?.steering?.condition} labelWidth="w-0" /></div>
             </div>
-            
+
             <div className="pl-1">
-              <DottedRow label={<span className="font-bold">5.5 Chassis Condition</span>} value={data.technical?.chassisCondition} labelWidth="w-32"/>
-              <DottedRow label={<span className="font-bold">5.6 Body Condition</span>} value={data.technical?.bodyCondition} labelWidth="w-32"/>
+              <DottedRow label={<span className="font-bold">5.5 Chassis Condition</span>} value={data.technical?.chassisCondition} labelWidth="w-32" />
+              <DottedRow label={<span className="font-bold">5.6 Body Condition</span>} value={data.technical?.bodyCondition} labelWidth="w-32" />
             </div>
 
             <h5 className="font-bold mt-2">5.8 Engine</h5>
             <div className="pl-3">
-               <DottedRow label="5.8.1 Condition" value={data.technical?.engine?.condition} labelWidth="w-28"/>
-               <div className="flex text-[9px] items-end gap-1 mt-1">
-                 <span className="w-16">5.8.2 Status :</span>
-                 <span className="border-b border-dotted border-black flex-grow text-center font-bold">{data.technical?.engine?.status}</span>
-                 <span>Overhaul:</span>
-                 <span className="border-b border-dotted border-black w-12 text-center font-bold">{data.technical?.engine?.overhaulDoneOn}</span>
-                 <span>Replaced:</span>
-                 <span className="border-b border-dotted border-black w-12 text-center font-bold">{data.technical?.engine?.replacedOn}</span>
-               </div>
+              <DottedRow label="5.8.1 Condition" value={data.technical?.engine?.condition} labelWidth="w-28" />
+              <div className="flex text-[9px] items-end gap-1 mt-1">
+                <span className="w-16">5.8.2 Status :</span>
+                <span className="border-b border-dotted border-black flex-grow text-center font-bold">{data.technical?.engine?.status}</span>
+                <span>Overhaul:</span>
+                <span className="border-b border-dotted border-black w-12 text-center font-bold">{data.technical?.engine?.overhaulDoneOn}</span>
+                <span>Replaced:</span>
+                <span className="border-b border-dotted border-black w-12 text-center font-bold">{data.technical?.engine?.replacedOn}</span>
+              </div>
             </div>
 
             <h5 className="font-bold mt-2">5.9 Tyres</h5>
@@ -229,38 +221,38 @@ const ValuationPrintView = ({ data }) => {
               <span>Size</span><span>Wheels</span><span className="mr-8">Normal</span>
             </div>
             <div className="pl-3">
-               <div className="flex justify-between pr-8"><DottedRow label="5.9.1 Front" value={data.technical?.tyres?.front?.size} labelWidth="w-16"/><span className="border-b border-dotted border-black w-10 text-center font-bold">{data.technical?.tyres?.front?.conditionPercent}</span></div>
-               <div className="flex justify-between pr-8"><DottedRow label="5.9.2 Rear" value={data.technical?.tyres?.rear?.size} labelWidth="w-16"/><span className="border-b border-dotted border-black w-10 text-center font-bold">{data.technical?.tyres?.rear?.conditionPercent}</span></div>
-               <div className="flex justify-between pr-8"><DottedRow label="5.9.3 Spare" value={data.technical?.tyres?.spare?.size} labelWidth="w-16"/><span className="border-b border-dotted border-black w-10 text-center font-bold">{data.technical?.tyres?.spare?.conditionPercent}</span></div>
+              <div className="flex justify-between pr-8"><DottedRow label="5.9.1 Front" value={data.technical?.tyres?.front?.size} labelWidth="w-16" /><span className="border-b border-dotted border-black w-10 text-center font-bold">{data.technical?.tyres?.front?.conditionPercent}</span></div>
+              <div className="flex justify-between pr-8"><DottedRow label="5.9.2 Rear" value={data.technical?.tyres?.rear?.size} labelWidth="w-16" /><span className="border-b border-dotted border-black w-10 text-center font-bold">{data.technical?.tyres?.rear?.conditionPercent}</span></div>
+              <div className="flex justify-between pr-8"><DottedRow label="5.9.3 Spare" value={data.technical?.tyres?.spare?.size} labelWidth="w-16" /><span className="border-b border-dotted border-black w-10 text-center font-bold">{data.technical?.tyres?.spare?.conditionPercent}</span></div>
             </div>
           </div>
 
           <div>
             <h5 className="font-bold">4.7 Electrical System</h5>
             <div className="pl-3">
-               <DottedRow label="5.7.1 S/Starter" value={data.technical?.electricalSystem?.starter} labelWidth="w-28"/>
-               <DottedRow label="5.7.2 Wipers" value={data.technical?.electricalSystem?.wipers} labelWidth="w-28"/>
-               <DottedRow label="5.7.3 Horn" value={data.technical?.electricalSystem?.horn} labelWidth="w-28"/>
-               <DottedRow label="5.7.4 Lights" value={data.technical?.electricalSystem?.lights} labelWidth="w-28"/>
-               <DottedRow label="5.7.5 Meters" value={data.technical?.electricalSystem?.meters} labelWidth="w-28"/>
-               <DottedRow label="5.7.6 Alternator" value={data.technical?.electricalSystem?.alternator} labelWidth="w-28"/>
+              <DottedRow label="5.7.1 S/Starter" value={data.technical?.electricalSystem?.starter} labelWidth="w-28" />
+              <DottedRow label="5.7.2 Wipers" value={data.technical?.electricalSystem?.wipers} labelWidth="w-28" />
+              <DottedRow label="5.7.3 Horn" value={data.technical?.electricalSystem?.horn} labelWidth="w-28" />
+              <DottedRow label="5.7.4 Lights" value={data.technical?.electricalSystem?.lights} labelWidth="w-28" />
+              <DottedRow label="5.7.5 Meters" value={data.technical?.electricalSystem?.meters} labelWidth="w-28" />
+              <DottedRow label="5.7.6 Alternator" value={data.technical?.electricalSystem?.alternator} labelWidth="w-28" />
             </div>
 
             <div className="border border-black p-2 mt-6 w-56 ml-auto bg-gray-50/50">
-               <div className="flex font-bold"><span className="w-20">Reg No</span><span className="flex-grow border-b border-dotted border-black px-1">{data.identification?.registrationNo}</span></div>
-               <div className="flex font-bold mt-1.5"><span className="w-20">Chassis No</span><span className="flex-grow border-b border-dotted border-black px-1">{data.identification?.chassisNo}</span></div>
+              <div className="flex font-bold"><span className="w-20">Reg No</span><span className="flex-grow border-b border-dotted border-black px-1">{data.identification?.registrationNo}</span></div>
+              <div className="flex font-bold mt-1.5"><span className="w-20">Chassis No</span><span className="flex-grow border-b border-dotted border-black px-1">{data.identification?.chassisNo}</span></div>
             </div>
           </div>
         </div>
 
-        <div className="text-[10px] pl-2 mt-3">
+        <div className="text-[10px] pl-2 mt-2">
           <h5 className="font-bold">5.10 Major Repairs</h5>
           <div className="pl-3 space-y-0.5">
-             <DottedRow label="5.10.1 Needed within a year" value={data.evaluationTab2?.majorRepairs?.neededWithinYear} labelWidth="w-44"/>
-             <DottedRow label="5.10.2 Body parts replaced" value={data.evaluationTab2?.majorRepairs?.bodyPartsReplaced} labelWidth="w-44"/>
-             <DottedRow label="5.10.3 Accidents" value={data.evaluationTab2?.majorRepairs?.accidents} labelWidth="w-44"/>
-             <DottedRow label="5.10.4 Write off by insurers" value={data.evaluationTab2?.majorRepairs?.writeOffByInsurers} labelWidth="w-44"/>
-             <DottedRow label="5.10.5 Comments" value={data.evaluationTab2?.majorRepairs?.comments} labelWidth="w-44"/>
+            <DottedRow label="5.10.1 Needed within a year" value={data.evaluationTab2?.majorRepairs?.neededWithinYear} labelWidth="w-44" />
+            <DottedRow label="5.10.2 Body parts replaced" value={data.evaluationTab2?.majorRepairs?.bodyPartsReplaced} labelWidth="w-44" />
+            <DottedRow label="5.10.3 Accidents" value={data.evaluationTab2?.majorRepairs?.accidents} labelWidth="w-44" />
+            <DottedRow label="5.10.4 Write off by insurers" value={data.evaluationTab2?.majorRepairs?.writeOffByInsurers} labelWidth="w-44" />
+            <DottedRow label="5.10.5 Comments" value={data.evaluationTab2?.majorRepairs?.comments} labelWidth="w-44" />
           </div>
 
           <div className="mt-1.5"><DottedRow label={<span className="font-bold">5.11 Compliance with environment regulations</span>} value={data.evaluationTab2?.complianceWithEnvRegulations} labelWidth="w-64" /></div>
@@ -268,24 +260,24 @@ const ValuationPrintView = ({ data }) => {
 
           <h5 className="font-bold mt-2">5.12 Maintenance</h5>
           <div className="pl-3 flex">
-             <div className="w-1/2">
-                <DottedRow label="5.12.1 Mechanical" value="" labelWidth="w-32"/>
-                <DottedRow label="5.12.2 Body" value="" labelWidth="w-32"/>
-                <DottedRow label="5.12.3 Internal trim" value={data.evaluationTab2?.maintenance?.internalTrim} labelWidth="w-32"/>
-             </div>
-             <div className="w-1/2">
-                <DottedRow label="" value={data.evaluationTab2?.maintenance?.mechanical} labelWidth="w-2"/>
-                <DottedRow label="" value={data.evaluationTab2?.maintenance?.body} labelWidth="w-2"/>
-                <DottedRow label="" value="-" labelWidth="w-2"/>
-             </div>
+            <div className="w-1/2">
+              <DottedRow label="5.12.1 Mechanical" value="" labelWidth="w-32" />
+              <DottedRow label="5.12.2 Body" value="" labelWidth="w-32" />
+              <DottedRow label="5.12.3 Internal trim" value={data.evaluationTab2?.maintenance?.internalTrim} labelWidth="w-32" />
+            </div>
+            <div className="w-1/2">
+              <DottedRow label="" value={data.evaluationTab2?.maintenance?.mechanical} labelWidth="w-2" />
+              <DottedRow label="" value={data.evaluationTab2?.maintenance?.body} labelWidth="w-2" />
+              <DottedRow label="" value="-" labelWidth="w-2" />
+            </div>
           </div>
 
           <h5 className="font-bold mt-2">5.13 Options</h5>
           <div className="pl-3 space-y-0.5">
-             <DottedRow label="5.13.1 P.Shutters" value={data.technical?.options?.powerShutters} labelWidth="w-48"/>
-             <DottedRow label="5.13.2 P.Mirrors" value={data.technical?.options?.powerMirrors} labelWidth="w-48"/>
-             <DottedRow label="5.13.3 Air conditioner (S/D/C)" value={data.technical?.options?.airConditioner} labelWidth="w-48"/>
-             <DottedRow label="5.13.4 Special features" value={data.technical?.specialFeatures} labelWidth="w-48"/>
+            <DottedRow label="5.13.1 P.Shutters" value={data.technical?.options?.powerShutters} labelWidth="w-48" />
+            <DottedRow label="5.13.2 P.Mirrors" value={data.technical?.options?.powerMirrors} labelWidth="w-48" />
+            <DottedRow label="5.13.3 Air conditioner (S/D/C)" value={data.technical?.options?.airConditioner} labelWidth="w-48" />
+            <DottedRow label="5.13.4 Special features" value={data.technical?.specialFeatures} labelWidth="w-48" />
           </div>
 
           <div className="grid grid-cols-2 gap-8 mt-2 pl-1">
@@ -295,42 +287,38 @@ const ValuationPrintView = ({ data }) => {
               <DottedRow label={<span className="font-bold">5.16 Body</span>} value={data.evaluationTab2?.bodyType} labelWidth="w-20" />
             </div>
             <div>
-              <DottedRow label={<span className="font-bold">5.17 Condition</span>} value={data.evaluationTab2?.generalCondition} labelWidth="w-32"/>
-              <DottedRow label={<span className="font-bold">5.18 Batteries</span>} value={data.evaluationTab2?.batteries} labelWidth="w-32"/>
-              <DottedRow label={<span className="font-bold">5.19 Type of Vehicle</span>} value={data.identification?.classification} labelWidth="w-32"/>
+              <DottedRow label={<span className="font-bold">5.17 Condition</span>} value={data.evaluationTab2?.generalCondition} labelWidth="w-32" />
+              <DottedRow label={<span className="font-bold">5.18 Batteries</span>} value={data.evaluationTab2?.batteries} labelWidth="w-32" />
+              <DottedRow label={<span className="font-bold">5.19 Type of Vehicle</span>} value={data.identification?.classification} labelWidth="w-32" />
             </div>
           </div>
         </div>
 
         <div className="mt-auto pt-2 text-[10px]">
           <h5 className="font-bold">6.0 Declaration by supplier</h5>
-          <p className="pl-3 mb-4 leading-tight">I hereby declare and affirm that I am the current owner of the vehicle details indicated in the section 1.0 that the information given concerning it is correct to the best of my knowledge.</p>
-          
-          <div className="flex justify-between pl-3 mb-4">
-            <div className="w-48"><DottedRow label="Date" value="" labelWidth="w-10"/></div>
-            <div className="w-56"><DottedRow label="Vendor" value="" labelWidth="w-12"/></div>
+          <p className="pl-3 mb-2 leading-tight">I hereby declare and affirm that I am the current owner of the vehicle details indicated in the section 1.0 that the information given concerning it is correct to the best of my knowledge.</p>
+
+          <div className="flex justify-between pl-3 mb-3">
+            <div className="w-48"><DottedRow label="Date" value="" labelWidth="w-10" /></div>
+            <div className="w-56"><DottedRow label="Vendor" value="" labelWidth="w-12" /></div>
           </div>
 
-          <div className="font-bold space-y-1.5 mb-1 bg-gray-50/50 p-2 border border-gray-200">
-            <div className="flex items-end"><span className="w-36 shrink-0">7.0 Market Value : Rs.</span><span className="w-24 text-right pr-2 border-b border-dotted border-black">{data.evaluationTab2?.marketValue?.toLocaleString('en-US', {minimumFractionDigits: 2})}</span><span className="ml-2 uppercase border-b border-dotted border-black flex-grow">{data.evaluationTab2?.marketValueWords}</span></div>
-            <div className="flex items-end"><span className="w-36 shrink-0">8.0 Forced Value : Rs.</span><span className="w-24 text-right pr-2 border-b border-dotted border-black">{data.evaluationTab2?.forcedSaleValue?.toLocaleString('en-US', {minimumFractionDigits: 2})}</span><span className="ml-2 uppercase border-b border-dotted border-black flex-grow">{data.evaluationTab2?.forcedSaleValueWords}</span></div>
+          <div className="font-bold space-y-1.5 mb-1 bg-gray-200 p-2 border">
+            <div className="flex items-end"><span className="w-36 shrink-0">7.0 Market Value : Rs.</span><span className="w-24 text-right pr-2 border-b border-dotted border-black">{data.evaluationTab2?.marketValue?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span><span className="ml-2 uppercase border-b border-dotted border-black flex-grow">{data.evaluationTab2?.marketValueWords}</span></div>
+            <div className="flex items-end"><span className="w-36 shrink-0">8.0 Forced Value : Rs.</span><span className="w-24 text-right pr-2 border-b border-dotted border-black">{data.evaluationTab2?.forcedSaleValue?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span><span className="ml-2 uppercase border-b border-dotted border-black flex-grow">{data.evaluationTab2?.forcedSaleValueWords}</span></div>
           </div>
           <p className="text-center italic mb-4 text-[9px]">(The above prices inclusive of VAT)</p>
 
           <h5 className="font-bold">9.0 Declaration of valuer</h5>
-          <p className="pl-3 mb-10 leading-tight">I hereby confirm that the information stated is correct as per inspections made by me and to the best of my knowledge. I also have given the above valuation after considering all relevant factors, which affect the value of the vehicle to the best of my expertise knowledge.</p>
-          
-          <div className="flex justify-between items-end px-6 font-bold text-center">
+          <p className="pl-3 mb-5 leading-tight">I hereby confirm that the information stated is correct as per inspections made by me and to the best of my knowledge. I also have given the above valuation after considering all relevant factors, which affect the value of the vehicle to the best of my expertise knowledge.</p>
+
+          {/* Valuer Signature Area - Cleaned up to leave space for physical rubber seal and signature */}
+          <div className="flex justify-between items-end px-6 font-bold text-center mt-8">
             <div className="w-40 border-t border-black pt-1">Signature of the Valuer</div>
-            <div className="text-[11px] text-blue-900 leading-tight">
-               <p>DAMINDA K. KAHADUWA</p>
-               <p className="text-[8px]">VALUER OF MOTOR VEHICLES</p>
-               <p className="text-[8px]">Reg. No: LASL/V/089</p>
-               <p className="text-[12px] mt-0.5">DK AUTOMOBILE</p>
-            </div>
+
             <div className="w-32">
-               <p className="mb-0.5">{new Date(data.inspectionDate).toLocaleDateString()}</p>
-               <div className="border-t border-black pt-1">Date</div>
+              <p className="mb-0.5">{new Date(data.inspectionDate).toLocaleDateString()}</p>
+              <div className="border-t border-black pt-1">Date</div>
             </div>
           </div>
         </div>
