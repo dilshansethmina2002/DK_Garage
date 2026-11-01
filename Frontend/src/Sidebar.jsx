@@ -42,9 +42,9 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Inventory', path: '/inventory', icon: <Package className="w-5 h-5" /> },
     { name: 'Vehicle History', path: '/vehicles/history', icon: <History className="w-5 h-5" /> },
     { name: 'Vehicles', path: '/vehicles', icon: <Car className="w-5 h-5" /> },
-    { name: 'Customers', path: '/customers', icon: <Users className="w-5 h-5" /> },
+    // { name: 'Customers', path: '/customers', icon: <Users className="w-5 h-5" /> },
     { name: 'Reports', path: '/reports', icon: <BarChart3 className="w-5 h-5" /> },
-    { name: 'Payments', path: '/finance', icon: <CreditCard className="w-5 h-5" /> },
+    // { name: 'Payments', path: '/finance', icon: <CreditCard className="w-5 h-5" /> },
     {name: 'New Valuation', path: '/valuations/new', icon: <ClipboardList className="w-5 h-5" />},
     {name: 'Valuations', path: '/valuations', icon: <ClipboardList className="w-5 h-5" />},
     // Only visible to workshop Administrators
@@ -73,7 +73,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             <img
               src={dkLogo}
               alt="DK Automobile"
-              className="h-12 w-auto object-contain mix-blend-screen brightness-110 contrast-125"
+              className="h-18 w-auto object-contain mix-blend-screen brightness-110 contrast-125"
               draggable="false"
             />
           </div>

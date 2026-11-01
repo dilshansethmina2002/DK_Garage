@@ -11,6 +11,7 @@ import UserManagement from './Pages/UserManagement';
 import VehicleHistory from './Pages/VehicleHistory';
 import ValuationWorkspace from './Pages/ValuationWorkspace';
 import ValuationsList from './Pages/ValuationsList';
+import ReportsDashboard from './Pages/ReportDashbord';
 
 function App() {
   return (
@@ -31,7 +32,7 @@ function App() {
           <Route path="/inventory" element={<div className="p-8 font-bold text-xl">Inventory Coming Soon</div>} />
           <Route path="/vehicles" element={<Vehicles />} />
           <Route path="/customers" element={<div className="p-8 font-bold text-xl">Customers Coming Soon</div>} />
-          <Route path="/reports" element={<div className="p-8 font-bold text-xl">Reports Coming Soon</div>} />
+          <Route path="/reports" element={<ReportsDashboard />} />
           <Route path="/finance" element={<div className="p-8 font-bold text-xl">Finance Coming Soon</div>} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/valuations" element={<ValuationsList />} />
