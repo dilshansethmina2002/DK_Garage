@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js'; // Note the .js extension
 import userRoutes from './routes/userRoutes.js'; // Note the .js extension
 import valuationRoutes from './routes/valuationRoutes.js';
+import quotationRoutes from './routes/quotationRoutes.js';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/valuations', valuationRoutes);
+app.use('/api/quotations', quotationRoutes);
 
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB Connected successfully'))
