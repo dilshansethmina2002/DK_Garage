@@ -1,4 +1,3 @@
-import mongoose from 'react'; // Adjust to standard const mongoose = require('mongoose') if using CommonJS
 import mongoose from 'mongoose';
 
 const itemSchema = new mongoose.Schema({
@@ -12,12 +11,12 @@ const quotationSchema = new mongoose.Schema({
   
   // Customer & Vehicle Info
   customerName: { type: String, required: true },
-  contactNumber: { type: String },
-  insuranceCompany: { type: String }, // Very common for collision/accident repairs
+  contactNumber: { type: String, default: '' },
+  insuranceCompany: { type: String, default: '' },
   vehicleNo: { type: String, required: true },
-  make: { type: String },
-  model: { type: String },
-  chassisNo: { type: String },
+  make: { type: String, default: '' },
+  model: { type: String, default: '' },
+  chassisNo: { type: String, default: '' },
 
   // The 4 Main Quotation Parts
   removeAndRefix: [itemSchema],
@@ -37,18 +36,20 @@ const quotationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Auto-calculate totals before saving to ensure database integrity
-quotationSchema.pre('save', function (next) {
-  const calcTotal = (arr) => arr.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+// Auto-calculate totals before saving (Synchronous Hook - No `next` parameter)
+quotationSchema.pre('save', function () {
+  const calcTotal = (arr) => (arr || []).reduce((sum, item) => sum + (Number(item?.amount) || 0), 0);
 
   this.totalRemoveAndRefix = calcTotal(this.removeAndRefix);
   this.totalRealigning = calcTotal(this.realigning);
   this.totalRepainting = calcTotal(this.repainting);
   this.totalSpareParts = calcTotal(this.spareParts);
 
-  this.grandTotal = this.totalRemoveAndRefix + this.totalRealigning + this.totalRepainting + this.totalSpareParts;
-  
-  next();
+  this.grandTotal = 
+    this.totalRemoveAndRefix + 
+    this.totalRealigning + 
+    this.totalRepainting + 
+    this.totalSpareParts;
 });
 
 export default mongoose.model('Quotation', quotationSchema);

@@ -12,6 +12,9 @@ import VehicleHistory from './Pages/VehicleHistory';
 import ValuationWorkspace from './Pages/ValuationWorkspace';
 import ValuationsList from './Pages/ValuationsList';
 import ReportsDashboard from './Pages/ReportDashbord';
+import QuotationsList from './Pages/QuotationsList';
+import QuotationWorkspace from './Pages/QuotationWorkspace';
+import QuotationPrintView from './components/QuotationPrintView';
 
 function App() {
   return (
@@ -38,6 +41,10 @@ function App() {
           <Route path="/valuations" element={<ValuationsList />} />
           <Route path="/valuations/new" element={<ValuationWorkspace />} />
           <Route path="/valuations/workspace/:id" element={<ValuationWorkspace />} />
+          <Route path="/quotations" element={<QuotationsList />} />
+          <Route path="/quotations/workspace" element={<QuotationWorkspace />} />
+          <Route path="/quotations/workspace/:id" element={<QuotationWorkspace />} />
+          <Route path="/quotations/print/:id" element={<QuotationPrintView />} />
         </Route>
       </Routes>
     </BrowserRouter>

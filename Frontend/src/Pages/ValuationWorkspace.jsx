@@ -122,6 +122,7 @@ const ValuationWorkspace = () => {
 
     const [activeTab, setActiveTab] = useState('identification');
     const [formData, setFormData] = useState(INITIAL_FORM_STATE);
+    const [validationErrors, setValidationErrors] = useState({});
     const [loading, setLoading] = useState(isEditMode);
     const [saving, setSaving] = useState(false);
     const [uploadingPhotos, setUploadingPhotos] = useState(false);
@@ -154,6 +155,15 @@ const ValuationWorkspace = () => {
             ...prev,
             [section]: { ...prev[section], [field]: value }
         }));
+        // Clear specific validation error if exists
+        const errorKey = `${section}.${field}`;
+        if (validationErrors[errorKey]) {
+            setValidationErrors(prev => {
+                const updated = { ...prev };
+                delete updated[errorKey];
+                return updated;
+            });
+        }
     };
 
     const handleDeepNestedChange = (section, subSection, field, value) => {
@@ -211,20 +221,114 @@ const ValuationWorkspace = () => {
         }
     };
 
+    const validateForm = () => {
+        const errors = {};
+        const missingFields = [];
+
+        // Required in root
+        if (!formData.reportNo || String(formData.reportNo).trim() === '') {
+            errors['reportNo'] = 'Report Number is required';
+            missingFields.push('Report Number');
+        }
+
+        // Required in identification (Tab 1)
+        const idFields = [
+            { key: 'registrationNo', label: '1.1 Registration No' },
+            { key: 'make', label: '1.2 Make' },
+            { key: 'model', label: '1.3 Model' },
+            { key: 'chassisNo', label: '1.4 Chassis No' },
+            { key: 'engineNo', label: '1.5 Engine No' }
+        ];
+
+        let hasIdentificationError = false;
+        idFields.forEach(({ key, label }) => {
+            if (!formData.identification?.[key] || String(formData.identification[key]).trim() === '') {
+                errors[`identification.${key}`] = `${label} is required`;
+                missingFields.push(label);
+                hasIdentificationError = true;
+            }
+        });
+
+        // Required in evaluationTab2 (Tab 3)
+        let hasEvaluationError = false;
+        if (
+            formData.evaluationTab2?.marketValue === '' ||
+            formData.evaluationTab2?.marketValue === null ||
+            formData.evaluationTab2?.marketValue === undefined
+        ) {
+            errors['evaluationTab2.marketValue'] = '7.0 Market Value is required';
+            missingFields.push('7.0 Market Value');
+            hasEvaluationError = true;
+        }
+
+        if (
+            formData.evaluationTab2?.forcedSaleValue === '' ||
+            formData.evaluationTab2?.forcedSaleValue === null ||
+            formData.evaluationTab2?.forcedSaleValue === undefined
+        ) {
+            errors['evaluationTab2.forcedSaleValue'] = '8.0 Forced Sale Value is required';
+            missingFields.push('8.0 Forced Sale Value');
+            hasEvaluationError = true;
+        }
+
+        setValidationErrors(errors);
+
+        if (missingFields.length > 0) {
+            // Automatically switch tab to where the first missing field is located
+            if (hasIdentificationError && activeTab !== 'identification') {
+                setActiveTab('identification');
+            } else if (!hasIdentificationError && hasEvaluationError && activeTab !== 'evaluationTab2') {
+                setActiveTab('evaluationTab2');
+            }
+
+            setErrorMessage(`Please fill all required fields: ${missingFields.join(', ')}`);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return false;
+        }
+
+        return true;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setSaving(true);
         setErrorMessage(null);
         setSuccessMessage(null);
 
+        // Run validation check before submitting
+        if (!validateForm()) {
+            return;
+        }
+
+        setSaving(true);
+
+        // Sanitize payload to prevent Mongoose CastError on empty strings
+        const payload = JSON.parse(JSON.stringify(formData));
+
+        if (payload.evaluationTab2) {
+            payload.evaluationTab2.marketValue = Number(payload.evaluationTab2.marketValue) || 0;
+            payload.evaluationTab2.forcedSaleValue = Number(payload.evaluationTab2.forcedSaleValue) || 0;
+            payload.evaluationTab2.travelingCharge = Number(payload.evaluationTab2.travelingCharge) || 0;
+            payload.evaluationTab2.valuationCharge = Number(payload.evaluationTab2.valuationCharge) || 0;
+        }
+
+        // Clean out empty string dates that cause CastError on Date fields
+        if (payload.identification) {
+            if (!payload.identification.dateOfRegistration) delete payload.identification.dateOfRegistration;
+            if (!payload.identification.dateOfImport) delete payload.identification.dateOfImport;
+            if (!payload.identification.dateOfClearing) delete payload.identification.dateOfClearing;
+        }
+
         try {
             if (isEditMode) {
-                await API.put(`/api/valuations/${id}`, formData);
+                await API.put(`/api/valuations/${id}`, payload);
                 setSuccessMessage('Valuation Report updated successfully.');
             } else {
-                const res = await API.post('/api/valuations', formData);
+                const res = await API.post('/api/valuations', payload);
                 setSuccessMessage('Valuation Report generated and saved.');
-                navigate(`/valuations/workspace/${res.data.valuation.reportNo || res.data.valuation._id}`);
+                const newId = res.data?.valuation?._id || res.data?._id || res.data?.valuation?.reportNo;
+                if (newId) {
+                    navigate(`/valuations/workspace/${newId}`);
+                }
             }
         } catch (err) {
             setErrorMessage(err.response?.data?.message || 'Failed to persist valuation report.');
@@ -250,7 +354,7 @@ const ValuationWorkspace = () => {
 
     return (
         <>
-            {/* DATALISTS for Combo Boxes (Hidden from view, used for dropdown suggestions) */}
+            {/* DATALISTS for Combo Boxes */}
             <datalist id="make-options">
                 <option value="TOYOTA" />
                 <option value="MITSUBISHI" />
@@ -388,7 +492,6 @@ const ValuationWorkspace = () => {
                 <option value="Steel" />
             </datalist>
 
-
             <div className="min-h-screen bg-slate-100/90 p-4 sm:p-6 lg:p-8 font-sans text-slate-900 print:hidden">
                 <div className="max-w-[1600px] mx-auto space-y-6">
 
@@ -448,8 +551,30 @@ const ValuationWorkspace = () => {
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                             <div>
-                                <label className="text-[11px] font-black text-slate-600 uppercase block mb-1">Report No *</label>
-                                <input type="text" value={formData.reportNo} onChange={e => setFormData({ ...formData, reportNo: e.target.value })} className="w-full p-2 border-2 border-slate-300 rounded-xl text-xs font-black bg-slate-50 focus:bg-white outline-none focus:border-slate-800" />
+                                <label className="text-[11px] font-black text-slate-600 uppercase block mb-1">
+                                    Report No <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.reportNo}
+                                    onChange={e => {
+                                        setFormData({ ...formData, reportNo: e.target.value });
+                                        if (validationErrors['reportNo']) {
+                                            setValidationErrors(prev => {
+                                                const u = { ...prev };
+                                                delete u['reportNo'];
+                                                return u;
+                                            });
+                                        }
+                                    }}
+                                    className={`w-full p-2 border-2 rounded-xl text-xs font-black bg-slate-50 focus:bg-white outline-none transition-colors ${validationErrors['reportNo']
+                                            ? 'border-red-500 ring-2 ring-red-200'
+                                            : 'border-slate-300 focus:border-slate-800'
+                                        }`}
+                                />
+                                {validationErrors['reportNo'] && (
+                                    <p className="text-[10px] text-red-600 font-bold mt-1">{validationErrors['reportNo']}</p>
+                                )}
                             </div>
                             <div>
                                 <label className="text-[11px] font-black text-slate-600 uppercase block mb-1">Company</label>
@@ -513,41 +638,122 @@ const ValuationWorkspace = () => {
                     {activeTab === 'identification' && (
                         <div className="bg-white p-6 rounded-b-2xl border-2 border-t-0 border-slate-300 shadow-xs space-y-5">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.1 Registration No *</label><input type="text" value={formData.identification.registrationNo} onChange={e => handleNestedChange('identification', 'registrationNo', e.target.value.toUpperCase())} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none" /></div>
 
-                                {/* Make (Combobox) */}
+                                {/* 1.1 Registration No */}
                                 <div>
-                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.2 Make *</label>
-                                    <input type="text" list="make-options" value={formData.identification.make} onChange={e => handleNestedChange('identification', 'make', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">
+                                        1.1 Registration No <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.identification.registrationNo}
+                                        onChange={e => handleNestedChange('identification', 'registrationNo', e.target.value.toUpperCase())}
+                                        className={`w-full p-2.5 border-2 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none transition-colors ${validationErrors['identification.registrationNo']
+                                                ? 'border-red-500 ring-2 ring-red-200'
+                                                : 'border-slate-300 focus:border-slate-800'
+                                            }`}
+                                    />
+                                    {validationErrors['identification.registrationNo'] && (
+                                        <p className="text-[10px] text-red-600 font-bold mt-1">{validationErrors['identification.registrationNo']}</p>
+                                    )}
                                 </div>
 
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.3 Model *</label><input type="text" value={formData.identification.model} onChange={e => handleNestedChange('identification', 'model', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.4 Chassis No *</label><input type="text" value={formData.identification.chassisNo} onChange={e => handleNestedChange('identification', 'chassisNo', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.5 Engine No *</label><input type="text" value={formData.identification.engineNo} onChange={e => handleNestedChange('identification', 'engineNo', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none" /></div>
+                                {/* 1.2 Make */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">
+                                        1.2 Make <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        list="make-options"
+                                        value={formData.identification.make}
+                                        onChange={e => handleNestedChange('identification', 'make', e.target.value)}
+                                        className={`w-full p-2.5 border-2 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none transition-colors ${validationErrors['identification.make']
+                                                ? 'border-red-500 ring-2 ring-red-200'
+                                                : 'border-slate-300 focus:border-slate-800'
+                                            }`}
+                                    />
+                                    {validationErrors['identification.make'] && (
+                                        <p className="text-[10px] text-red-600 font-bold mt-1">{validationErrors['identification.make']}</p>
+                                    )}
+                                </div>
 
-                                {/* Classification (Combobox) */}
+                                {/* 1.3 Model */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">
+                                        1.3 Model <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.identification.model}
+                                        onChange={e => handleNestedChange('identification', 'model', e.target.value)}
+                                        className={`w-full p-2.5 border-2 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none transition-colors ${validationErrors['identification.model']
+                                                ? 'border-red-500 ring-2 ring-red-200'
+                                                : 'border-slate-300 focus:border-slate-800'
+                                            }`}
+                                    />
+                                    {validationErrors['identification.model'] && (
+                                        <p className="text-[10px] text-red-600 font-bold mt-1">{validationErrors['identification.model']}</p>
+                                    )}
+                                </div>
+
+                                {/* 1.4 Chassis No */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">
+                                        1.4 Chassis No <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.identification.chassisNo}
+                                        onChange={e => handleNestedChange('identification', 'chassisNo', e.target.value)}
+                                        className={`w-full p-2.5 border-2 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none transition-colors ${validationErrors['identification.chassisNo']
+                                                ? 'border-red-500 ring-2 ring-red-200'
+                                                : 'border-slate-300 focus:border-slate-800'
+                                            }`}
+                                    />
+                                    {validationErrors['identification.chassisNo'] && (
+                                        <p className="text-[10px] text-red-600 font-bold mt-1">{validationErrors['identification.chassisNo']}</p>
+                                    )}
+                                </div>
+
+                                {/* 1.5 Engine No */}
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">
+                                        1.5 Engine No <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.identification.engineNo}
+                                        onChange={e => handleNestedChange('identification', 'engineNo', e.target.value)}
+                                        className={`w-full p-2.5 border-2 rounded-xl text-xs font-black uppercase bg-slate-50 focus:bg-white outline-none transition-colors ${validationErrors['identification.engineNo']
+                                                ? 'border-red-500 ring-2 ring-red-200'
+                                                : 'border-slate-300 focus:border-slate-800'
+                                            }`}
+                                    />
+                                    {validationErrors['identification.engineNo'] && (
+                                        <p className="text-[10px] text-red-600 font-bold mt-1">{validationErrors['identification.engineNo']}</p>
+                                    )}
+                                </div>
+
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.6 Classification</label>
                                     <input type="text" list="classification-options" value={formData.identification.classification} onChange={e => handleNestedChange('identification', 'classification', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
                                 </div>
 
-                                {/* Country of Origin (Combobox) */}
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.7 Country of Origin</label>
                                     <input type="text" list="country-options" value={formData.identification.countryOfOrigin} onChange={e => handleNestedChange('identification', 'countryOfOrigin', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
                                 </div>
 
-                                {/* Country of Used (Combobox) */}
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.8 Country of Used</label>
                                     <input type="text" list="country-options" value={formData.identification.countryOfUsed} onChange={e => handleNestedChange('identification', 'countryOfUsed', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
                                 </div>
 
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.9 Year of Manufacture</label><input type="text" value={formData.identification.yearOfManufacture} onChange={e => handleNestedChange('identification', 'yearOfManufacture', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
-                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.10 Date of Registration</label><input type="text" value={formData.identification.dateOfRegistration} onChange={e => handleNestedChange('identification', 'dateOfRegistration', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
+                                <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.10 Date of Registration</label><input type="date" value={formData.identification.dateOfRegistration} onChange={e => handleNestedChange('identification', 'dateOfRegistration', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.11 Length</label><input type="text" value={formData.identification.length} onChange={e => handleNestedChange('identification', 'length', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
 
-                                {/* Fuel System (Combobox) */}
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.12 Fuel System</label>
                                     <input type="text" list="fuel-system-options" value={formData.identification.fuelSystem} onChange={e => handleNestedChange('identification', 'fuelSystem', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
@@ -556,7 +762,6 @@ const ValuationWorkspace = () => {
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.13 Unladen Weight</label><input type="text" value={formData.identification.unladenWeight} onChange={e => handleNestedChange('identification', 'unladenWeight', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.14 Gross Weight</label><input type="text" value={formData.identification.grossWeight} onChange={e => handleNestedChange('identification', 'grossWeight', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
 
-                                {/* Type of Fuel (Combobox) */}
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.15 Type of Fuel</label>
                                     <input type="text" list="fuel-type-options" value={formData.identification.typeOfFuel} onChange={e => handleNestedChange('identification', 'typeOfFuel', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
@@ -564,7 +769,6 @@ const ValuationWorkspace = () => {
 
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.18 Meter Reading</label><input type="text" value={formData.identification.meterReading} onChange={e => handleNestedChange('identification', 'meterReading', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
 
-                                {/* Colour (Combobox) */}
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.21 Colour</label>
                                     <input type="text" list="colour-options" value={formData.identification.colour} onChange={e => handleNestedChange('identification', 'colour', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
@@ -574,7 +778,6 @@ const ValuationWorkspace = () => {
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.26 Previous Owners</label><input type="text" value={formData.identification.previousOwners} onChange={e => handleNestedChange('identification', 'previousOwners', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
                                 <div><label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.28 Current Owner Name</label><input type="text" value={formData.identification.currentOwner} onChange={e => handleNestedChange('identification', 'currentOwner', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" /></div>
 
-                                {/* Compliance with CR (Combobox) */}
                                 <div>
                                     <label className="text-[11px] font-black text-slate-700 uppercase block mb-1">1.30 Compliance with CR</label>
                                     <input type="text" list="yes-no-options" value={formData.identification.complianceWithCR} onChange={e => handleNestedChange('identification', 'complianceWithCR', e.target.value)} className="w-full p-2.5 border-2 border-slate-300 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none" />
@@ -708,14 +911,18 @@ const ValuationWorkspace = () => {
                                     <DollarSign className="w-4 h-4 text-amber-800" /> 7.0 & 8.0 Commercial Valuation Figures (LKR)
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                                    {/* 7.0 Market Value */}
                                     <div>
-                                        <label className="text-xs font-black text-amber-900 uppercase block mb-1">7.0 Market Value (LKR) *</label>
+                                        <label className="text-xs font-black text-amber-900 uppercase block mb-1">
+                                            7.0 Market Value (LKR) <span className="text-red-500">*</span>
+                                        </label>
                                         <input
                                             type="number"
-                                            required
                                             value={formData.evaluationTab2.marketValue}
                                             onChange={e => {
-                                                const numValue = Number(e.target.value) || 0;
+                                                const val = e.target.value;
+                                                const numValue = val === '' ? '' : Number(val);
                                                 setFormData(prev => ({
                                                     ...prev,
                                                     evaluationTab2: {
@@ -724,9 +931,22 @@ const ValuationWorkspace = () => {
                                                         marketValueWords: convertNumberToWords(numValue)
                                                     }
                                                 }));
+                                                if (validationErrors['evaluationTab2.marketValue']) {
+                                                    setValidationErrors(prev => {
+                                                        const u = { ...prev };
+                                                        delete u['evaluationTab2.marketValue'];
+                                                        return u;
+                                                    });
+                                                }
                                             }}
-                                            className="w-full p-3 border-2 border-amber-400 bg-white rounded-xl text-base font-black text-slate-950 outline-none"
+                                            className={`w-full p-3 border-2 bg-white rounded-xl text-base font-black text-slate-950 outline-none transition-colors ${validationErrors['evaluationTab2.marketValue']
+                                                    ? 'border-red-500 ring-2 ring-red-200'
+                                                    : 'border-amber-400 focus:border-amber-600'
+                                                }`}
                                         />
+                                        {validationErrors['evaluationTab2.marketValue'] && (
+                                            <p className="text-[10px] text-red-600 font-bold mt-1">{validationErrors['evaluationTab2.marketValue']}</p>
+                                        )}
                                         <input
                                             type="text"
                                             placeholder="Market Value in Words"
@@ -735,14 +955,18 @@ const ValuationWorkspace = () => {
                                             className="w-full p-2 mt-2 border border-amber-300 bg-white/80 rounded-lg text-xs font-bold uppercase"
                                         />
                                     </div>
+
+                                    {/* 8.0 Forced Sale Value */}
                                     <div>
-                                        <label className="text-xs font-black text-amber-900 uppercase block mb-1">8.0 Forced Sale Value (LKR) *</label>
+                                        <label className="text-xs font-black text-amber-900 uppercase block mb-1">
+                                            8.0 Forced Sale Value (LKR) <span className="text-red-500">*</span>
+                                        </label>
                                         <input
                                             type="number"
-                                            required
                                             value={formData.evaluationTab2.forcedSaleValue}
                                             onChange={e => {
-                                                const numValue = Number(e.target.value) || 0;
+                                                const val = e.target.value;
+                                                const numValue = val === '' ? '' : Number(val);
                                                 setFormData(prev => ({
                                                     ...prev,
                                                     evaluationTab2: {
@@ -751,9 +975,22 @@ const ValuationWorkspace = () => {
                                                         forcedSaleValueWords: convertNumberToWords(numValue)
                                                     }
                                                 }));
+                                                if (validationErrors['evaluationTab2.forcedSaleValue']) {
+                                                    setValidationErrors(prev => {
+                                                        const u = { ...prev };
+                                                        delete u['evaluationTab2.forcedSaleValue'];
+                                                        return u;
+                                                    });
+                                                }
                                             }}
-                                            className="w-full p-3 border-2 border-amber-400 bg-white rounded-xl text-base font-black text-slate-950 outline-none"
+                                            className={`w-full p-3 border-2 bg-white rounded-xl text-base font-black text-slate-950 outline-none transition-colors ${validationErrors['evaluationTab2.forcedSaleValue']
+                                                    ? 'border-red-500 ring-2 ring-red-200'
+                                                    : 'border-amber-400 focus:border-amber-600'
+                                                }`}
                                         />
+                                        {validationErrors['evaluationTab2.forcedSaleValue'] && (
+                                            <p className="text-[10px] text-red-600 font-bold mt-1">{validationErrors['evaluationTab2.forcedSaleValue']}</p>
+                                        )}
                                         <input
                                             type="text"
                                             placeholder="Forced Sale Value in Words"

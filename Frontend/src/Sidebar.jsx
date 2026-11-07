@@ -47,6 +47,10 @@ const Sidebar = ({ isOpen, onClose }) => {
     // { name: 'Payments', path: '/finance', icon: <CreditCard className="w-5 h-5" /> },
     {name: 'New Valuation', path: '/valuations/new', icon: <ClipboardList className="w-5 h-5" />},
     {name: 'Valuations', path: '/valuations', icon: <ClipboardList className="w-5 h-5" />},
+    
+    {name: 'New Quotation', path: '/quotations/workspace', icon: <ClipboardList className="w-5 h-5" />},
+    {name: 'Quotations', path: '/quotations', icon: <ClipboardList className="w-5 h-5" />},
+
     // Only visible to workshop Administrators
     ...(isAdmin ? [{ name: 'User Management', path: '/users', icon: <UserCog className="w-5 h-5" /> }] : [])
   ];

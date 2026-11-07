@@ -4,11 +4,13 @@ import {
   getAllQuotations,
   getQuotationById,
   updateQuotation,
-  deleteQuotation
+  deleteQuotation,
+  getQuotationSuggestions
 } from '../controllers/quotationController.js';
 
 const quotationRouter = express.Router();
 
+quotationRouter.get('/suggestions', getQuotationSuggestions);
 quotationRouter.post('/', createQuotation);
 quotationRouter.get('/', getAllQuotations);
 quotationRouter.get('/:id', getQuotationById);

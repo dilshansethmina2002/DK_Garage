@@ -4,17 +4,34 @@ import Quotation from '../models/Quotation.js';
 // @route   POST /api/quotations
 export const createQuotation = async (req, res) => {
   try {
-    // Generate a quotation number if not provided (e.g., QTN-17042024-1234)
-    if (!req.body.quotationNo) {
-      req.body.quotationNo = `QTN-${Date.now().toString().slice(-6)}`;
+    const payload = { ...req.body };
+
+    const cleanVehicleNo = String(payload.vehicleNo || '').trim().toUpperCase().replace(/\s+/g, '-');
+
+    // Generate base number if missing
+    if (!payload.quotationNo || String(payload.quotationNo).trim() === '') {
+      const count = await Quotation.countDocuments();
+      const seq = 1001 + count;
+      payload.quotationNo = cleanVehicleNo ? `QTN-${seq}-${cleanVehicleNo}` : `QTN-${seq}`;
+    } else {
+      let qNo = String(payload.quotationNo).trim().toUpperCase();
+      // Ensure the vehicle number is appended if not already present
+      if (cleanVehicleNo && !qNo.endsWith(cleanVehicleNo)) {
+        payload.quotationNo = `${qNo}-${cleanVehicleNo}`;
+      } else {
+        payload.quotationNo = qNo;
+      }
     }
 
-    const quotation = new Quotation(req.body);
+    const quotation = new Quotation(payload);
     const savedQuotation = await quotation.save();
     
     res.status(201).json(savedQuotation);
   } catch (error) {
-    res.status(400).json({ message: error.message || 'Failed to create quotation' });
+    console.error("Quotation Save Error:", error);
+    res.status(400).json({ 
+      message: error.code === 11000 ? 'Quotation with this identifier already exists.' : error.message 
+    });
   }
 };
 
@@ -27,6 +44,35 @@ export const getAllQuotations = async (req, res) => {
     res.status(200).json(quotations);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch quotations' });
+  }
+};
+
+
+export const getQuotationSuggestions = async (req, res) => {
+  try {
+    const [removeAndRefix, realigning, repainting, spareParts] = await Promise.all([
+      Quotation.distinct('removeAndRefix.description'),
+      Quotation.distinct('realigning.description'),
+      Quotation.distinct('repainting.description'),
+      Quotation.distinct('spareParts.description')
+    ]);
+
+    // Clean out empty strings, nulls, and trim values
+    const cleanUnique = (list) =>
+      [...new Set((list || [])
+        .map(item => (typeof item === 'string' ? item.trim() : ''))
+        .filter(item => item.length > 0)
+      )].sort((a, b) => a.localeCompare(b));
+
+    res.status(200).json({
+      removeAndRefix: cleanUnique(removeAndRefix),
+      realigning: cleanUnique(realigning),
+      repainting: cleanUnique(repainting),
+      spareParts: cleanUnique(spareParts)
+    });
+  } catch (error) {
+    console.error('Failed to fetch suggestions:', error);
+    res.status(500).json({ message: 'Failed to retrieve item suggestions' });
   }
 };
 

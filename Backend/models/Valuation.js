@@ -17,12 +17,12 @@ const valuationSchema = new mongoose.Schema({
 
   // Tab 1: Vehicle Identification Details
   identification: {
-    registrationNo: { type: String, required: true, uppercase: true, trim: true, index: true },
-    make: { type: String, required: true, trim: true },
-    model: { type: String, required: true, trim: true },
-    chassisNo: { type: String, required: true, trim: true },
-    engineNo: { type: String, required: true, trim: true },
-    classification: { type: String, default: 'MOTOR LORRY' },
+    registrationNo: { type: String, default: '', uppercase: true, trim: true, index: true },
+    make: { type: String, default: '', trim: true },
+    model: { type: String, default: '', trim: true },
+    chassisNo: { type: String, default: '', trim: true },
+    engineNo: { type: String, default: '', trim: true },
+    classification: { type: String, default: '' },
     countryOfOrigin: { type: String, default: 'Japan' },
     countryOfUsed: { type: String, default: 'Sri Lanka' },
     yearOfManufacture: { type: String, default: '' },
@@ -35,7 +35,7 @@ const valuationSchema = new mongoose.Schema({
     importer: { type: String, default: '' },
     currentOwner: { type: String, default: '' },
     extraOptions: { type: String, default: '' },
-    typeOfFuel: { type: String, default: 'Diesel' },
+    typeOfFuel: { type: String, default: '' },
     switchKeyNo: { type: String, default: '' },
     meterReading: { type: String, default: '' },
     dateOfImport: { type: String, default: '' },
@@ -43,7 +43,7 @@ const valuationSchema = new mongoose.Schema({
     colour: { type: String, default: 'White' },
     justLow: { type: String, default: '' },
     seatingCapacity: { type: String, default: '' },
-    fourWheelDrive: { type: String, default: 'No' },
+    fourWheelDrive: { type: String, default: '' },
     engineCapacity: { type: String, default: '' },
     complianceWithCR: { type: String, default: 'Yes' },
     complianceComments: { type: String, default: '-' }

@@ -28,17 +28,43 @@ const QuotationWorkspace = () => {
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState(INITIAL_FORM_STATE);
+    const [suggestions, setSuggestions] = useState({
+        removeAndRefix: [],
+        realigning: [],
+        repainting: [],
+        spareParts: []
+    });
     const [loading, setLoading] = useState(isEditMode);
     const [saving, setSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState(null);
 
+    // Fetch existing suggestions from previous quotes
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            try {
+                const res = await API.get('/api/quotations/suggestions');
+                if (res.data) {
+                    setSuggestions({
+                        removeAndRefix: res.data.removeAndRefix || [],
+                        realigning: res.data.realigning || [],
+                        repainting: res.data.repainting || [],
+                        spareParts: res.data.spareParts || []
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to load autofill suggestions', err);
+            }
+        };
+        fetchSuggestions();
+    }, []);
+
+    // Load existing quotation for edit mode
     useEffect(() => {
         if (!isEditMode) return;
         const fetchRecord = async () => {
             try {
                 setLoading(true);
                 const res = await API.get(`/api/quotations/${id}`);
-                // Ensure date is formatted properly for the input[type="date"]
                 const fetchedData = res.data;
                 if (fetchedData.date) {
                     fetchedData.date = new Date(fetchedData.date).toISOString().split('T')[0];
@@ -53,13 +79,11 @@ const QuotationWorkspace = () => {
         fetchRecord();
     }, [id, isEditMode]);
 
-    // Top-level field changes
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Dynamic Array Handlers
     const handleAddItem = (category) => {
         setFormData(prev => ({
             ...prev,
@@ -83,9 +107,8 @@ const QuotationWorkspace = () => {
         });
     };
 
-    // Auto-calculate Subtotals
     const calculateSubtotal = (categoryArray) => {
-        return categoryArray.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+        return (categoryArray || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     };
 
     const subTotalRemoveRefix = calculateSubtotal(formData.removeAndRefix);
@@ -99,20 +122,38 @@ const QuotationWorkspace = () => {
         setSaving(true);
         setErrorMessage(null);
 
+        const payload = { ...formData };
+
+        // Clean & format the vehicle number
+        const cleanVehicleNo = String(payload.vehicleNo || '').trim().toUpperCase().replace(/\s+/g, '-');
+
+        // Extract or generate base quotation prefix
+        let baseQuotationNo = String(payload.quotationNo || '').trim().toUpperCase();
+        if (!baseQuotationNo) {
+            baseQuotationNo = `QTN-${Date.now().toString().slice(-6)}`;
+        }
+
+        // Combine: BaseQuotationNo + VehicleNumber
+        // If not already ending with the vehicle number, join them with a hyphen
+        if (cleanVehicleNo && !baseQuotationNo.endsWith(cleanVehicleNo)) {
+            payload.quotationNo = `${baseQuotationNo}-${cleanVehicleNo}`;
+        } else {
+            payload.quotationNo = baseQuotationNo;
+        }
+
         try {
             if (isEditMode) {
-                await API.put(`/api/quotations/${id}`, formData);
-                navigate('/quotations'); // Redirect to list view after save
+                await API.put(`/api/quotations/${id}`, payload);
             } else {
-                await API.post('/api/quotations', formData);
-                navigate('/quotations'); 
+                await API.post('/api/quotations', payload);
             }
+            navigate('/quotations');
         } catch (err) {
             setErrorMessage(err.response?.data?.message || 'Failed to save quotation.');
             setSaving(false);
         }
     };
-
+    
     if (loading) {
         return (
             <div className="min-h-screen bg-slate-100 flex items-center justify-center p-8">
@@ -124,10 +165,10 @@ const QuotationWorkspace = () => {
         );
     }
 
-    // Reusable UI block for the 4 dynamic sections
     const renderDynamicSection = (title, categoryKey, IconComponent, colorClass) => {
         const items = formData[categoryKey];
         const subtotal = calculateSubtotal(items);
+        const datalistId = `${categoryKey}-datalist`;
 
         return (
             <div className="bg-white p-6 rounded-2xl border-2 border-slate-300 shadow-xs space-y-4">
@@ -146,13 +187,21 @@ const QuotationWorkspace = () => {
                     </p>
                 )}
 
+                {/* Datalist populated from previous MongoDB records */}
+                <datalist id={datalistId}>
+                    {(suggestions[categoryKey] || []).map((suggestion, sIdx) => (
+                        <option key={sIdx} value={suggestion} />
+                    ))}
+                </datalist>
+
                 <div className="space-y-3">
                     {items.map((item, index) => (
                         <div key={index} className="flex gap-3 items-start group">
                             <div className="flex-grow">
                                 <input
                                     type="text"
-                                    placeholder="Item Description..."
+                                    list={datalistId}
+                                    placeholder="Type or select description (e.g., Bonnet, Door shell)..."
                                     value={item.description}
                                     onChange={(e) => handleItemChange(categoryKey, index, 'description', e.target.value)}
                                     className="w-full p-2.5 border-2 border-slate-200 rounded-xl text-xs font-bold bg-slate-50 focus:bg-white outline-none focus:border-slate-800 transition-colors"
@@ -229,10 +278,10 @@ const QuotationWorkspace = () => {
                 )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
+
                     {/* LEFT COLUMN: Basic Info */}
                     <div className="lg:col-span-1 space-y-6">
-                        
+
                         {/* Doc Info */}
                         <div className="bg-white p-6 rounded-2xl border-2 border-slate-300 shadow-xs space-y-4">
                             <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2 flex items-center gap-2">
